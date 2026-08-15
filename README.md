@@ -304,3 +304,36 @@ We implemented a visual location mapping structure to translate location codes i
 ### 3. Page Layout Restructuring
 *   **Catalog Cards**: Redesigned the coordinates section to arrange section, unit, and box values horizontally, conserving space while keeping location codes and copy actions prominent.
 *   **Details View (`/inventory/:id`)**: Incorporated the `LocationDisplay` card as the primary visual component on the right-hand panel, giving storage tracking coordinates the highest visual priority on the page.
+
+---
+
+## Phase 7: Image-Based Physical Storage Locator
+
+We implemented an interactive, image-based physical storage locator that utilizes high-definition transparent PNG images of the user's real 6-box vertical storage rack.
+
+### 1. Transparent PNG Image Assets
+* **Storage Images Location**: [`frontend/public/img/`](file:///D:/Inventory-Management-System/frontend/public/img/)
+  * `0-removebg-preview.png`: All six boxes closed (Default State)
+  * `1-removebg-preview.png`: Box 1 Open (Top)
+  * `2-removebg-preview.png`: Box 2 Open
+  * `3-removebg-preview.png`: Box 3 Open
+  * `4-removebg-preview.png`: Box 4 Open
+  * `5-removebg-preview.png`: Box 5 Open
+  * `6-removebg-preview.png`: Box 6 Open (Bottom)
+
+### 2. Component Architecture & Storage Configuration
+* **Storage Configuration**: [`frontend/src/config/storageConfig.js`](file:///D:/Inventory-Management-System/frontend/src/config/storageConfig.js)
+  * Houses `storageImages` dictionary and `physicalDrawerMap` mapping location codes (e.g. `A319` $\rightarrow$ Drawer 3, `A210` $\rightarrow$ Drawer 2) to physical drawer numbers (1–6).
+* **Storage Visualizer Component**: [`frontend/src/components/storage/StorageVisualizer.jsx`](file:///D:/Inventory-Management-System/frontend/src/components/storage/StorageVisualizer.jsx)
+  * Displays the large, hero-sized transparent PNG rack image with smooth crossfade opacity transitions.
+  * Preloads all 7 images on mount for instant state switching without visual flickers.
+  * Includes state badges ("ALL BOXES CLOSED" or "BOX X OPEN") and a `[ Reset Location ]` action button.
+* **Location Panel Component**: [`frontend/src/components/storage/StorageLocationPanel.jsx`](file:///D:/Inventory-Management-System/frontend/src/components/storage/StorageLocationPanel.jsx)
+  * Displays Section, Storage Unit, and Box breakdown alongside item details and a clipboard copy button for location codes.
+
+### 3. Search & Locate Experience
+* **Split-Pane Layout**: Active searches or location actions trigger a split 2-column layout:
+  * **Left Column (45%)**: Search results with `[ LOCATE ]` and `[ Details ]` buttons.
+  * **Right Column (55%)**: Prominent Storage Rack visualizer + Location Info panel.
+* **Default State**: Opening `/inventory` without an active location selection shows the closed rack (`0-removebg-preview.png`).
+* **Locate Action**: Clicking `[ LOCATE ]` on any item card identifies its mapped physical drawer (1–6) and transitions the rack image to show that drawer open.

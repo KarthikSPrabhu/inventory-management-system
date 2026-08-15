@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, Link, useSearchParams } from 'react-router-dom';
 import { getInventoryItems } from '../services/inventoryService';
 import InventoryStats from '../components/inventory/InventoryStats';
 import InventoryCard from '../components/inventory/InventoryCard';
 import InventoryEmptyState from '../components/inventory/InventoryEmptyState';
+import StorageVisualizer from '../components/storage/StorageVisualizer';
+import StorageLocationPanel from '../components/storage/StorageLocationPanel';
+import { getPhysicalDrawerNumber } from '../config/storageConfig';
 
 // Skeleton Loader Card component for modern visual states
 const SkeletonCard = () => (
@@ -27,11 +30,13 @@ function Inventory() {
   const routerLocation = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const searchQuery = searchParams.get('search') || '';
+  const visualizerRef = useRef(null);
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [flashMessage, setFlashMessage] = useState('');
+  const [selectedItem, setSelectedItem] = useState(null);
 
   // Fetch all items from Atlas
   const loadInventory = async () => {
@@ -79,6 +84,27 @@ function Inventory() {
     }
   };
 
+  // Handle LOCATE button click
+  const handleLocateItem = (item) => {
+    if (selectedItem && selectedItem._id === item._id) {
+      // Toggle off if already selected
+      setSelectedItem(null);
+    } else {
+      setSelectedItem(item);
+      // Smooth scroll to visualizer on mobile screens
+      if (window.innerWidth < 1024 && visualizerRef.current) {
+        setTimeout(() => {
+          visualizerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      }
+    }
+  };
+
+  // Reset selected location to default closed rack state (0-removebg-preview.png)
+  const handleResetLocation = () => {
+    setSelectedItem(null);
+  };
+
   // Client-side filtering logic
   const filteredItems = items.filter((item) => {
     if (!searchQuery.trim()) return true;
@@ -96,6 +122,9 @@ function Inventory() {
     return nameMatch || codeMatch || sectionMatch || unitMatch || boxMatch;
   });
 
+  // Calculate physical drawer for currently selected item (0 if none selected)
+  const selectedDrawer = selectedItem ? getPhysicalDrawerNumber(selectedItem.location) : 0;
+
   // Render Result Count Text
   const renderResultCount = () => {
     const count = filteredItems.length;
@@ -112,6 +141,9 @@ function Inventory() {
     { label: 'Unit 3', term: '3' },
     { label: 'Box 19', term: '19' }
   ];
+
+  // Show 2-column split view if user has an active search or selected an item
+  const showSplitLayout = Boolean(searchQuery.trim() || selectedItem);
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -165,12 +197,12 @@ function Inventory() {
         </div>
       )}
 
-      {/* Summary Metrics Section (Visible only when not loading/error and inventory is populated) */}
+      {/* Summary Metrics Section */}
       {!loading && !error && items.length > 0 && (
         <InventoryStats items={items} />
       )}
 
-      {/* Prominent Search bar Section */}
+      {/* Search Bar Section */}
       {!loading && !error && items.length > 0 && (
         <div className="space-y-3">
           <div className="relative">
@@ -193,7 +225,10 @@ function Inventory() {
             {/* Clear Input Icon (✕) */}
             {searchQuery && (
               <button
-                onClick={() => handleSearchChange('')}
+                onClick={() => {
+                  handleSearchChange('');
+                  handleResetLocation();
+                }}
                 className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-550 hover:text-slate-300 transition-colors"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -221,7 +256,7 @@ function Inventory() {
         </div>
       )}
 
-      {/* Items Container View */}
+      {/* Main Content Area */}
       {loading ? (
         /* Skeleton Grid Loader */
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-fadeIn">
@@ -238,42 +273,107 @@ function Inventory() {
       ) : items.length === 0 ? (
         /* Database Empty State */
         <InventoryEmptyState />
-      ) : filteredItems.length === 0 ? (
-        /* Search Query No Results Empty State */
-        <div className="bg-slate-900 border border-slate-800/80 rounded-2xl p-12 text-center flex flex-col items-center justify-center space-y-4 animate-fadeIn">
-          <div className="h-16 w-16 rounded-full bg-slate-950 flex items-center justify-center text-rose-500/80 border border-slate-850 shadow-inner">
-            <svg className="w-7 h-7 stroke-[1.2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-          <div className="space-y-1">
-            <h4 className="text-base font-bold text-white tracking-tight">No inventory items found</h4>
-            <p className="text-xs text-slate-550 max-w-xs mx-auto">
-              We couldn't find matches for <span className="text-indigo-400 font-mono">"{searchQuery}"</span>. Try searching for an item name, location code, or storage section.
-            </p>
-          </div>
-          <div className="pt-2">
-            <button
-              onClick={() => handleSearchChange('')}
-              className="bg-slate-950 hover:bg-slate-805 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all"
-            >
-              Clear Search
-            </button>
-          </div>
-        </div>
-      ) : (
-        /* Responsive Cards Grid Layout */
+      ) : showSplitLayout ? (
+        /* Split Layout: Search Results (Left) + Physical Storage Locator (Right) */
         <div className="space-y-4 animate-fadeIn">
-          {/* Results count banner */}
-          {searchQuery && (
-            <p className="text-xs font-semibold text-indigo-400 px-1">
+          <div className="flex items-center justify-between px-1">
+            <p className="text-xs font-semibold text-indigo-400">
               {renderResultCount()}
             </p>
+            {selectedItem && (
+              <button
+                onClick={handleResetLocation}
+                className="text-[11px] font-bold text-slate-400 hover:text-indigo-400 bg-slate-900 border border-slate-800 px-3 py-1 rounded-lg transition-colors flex items-center gap-1"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                <span>Clear Selection</span>
+              </button>
+            )}
+          </div>
+
+          {filteredItems.length === 0 ? (
+            /* Search Query No Results Empty State */
+            <div className="bg-slate-900 border border-slate-800/80 rounded-2xl p-12 text-center flex flex-col items-center justify-center space-y-4 animate-fadeIn">
+              <div className="h-16 w-16 rounded-full bg-slate-950 flex items-center justify-center text-rose-500/80 border border-slate-850 shadow-inner">
+                <svg className="w-7 h-7 stroke-[1.2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-base font-bold text-white tracking-tight">No inventory items found</h4>
+                <p className="text-xs text-slate-550 max-w-xs mx-auto">
+                  We couldn't find matches for <span className="text-indigo-400 font-mono">"{searchQuery}"</span>. Try searching for an item name, location code, or storage section.
+                </p>
+              </div>
+              <div className="pt-2">
+                <button
+                  onClick={() => {
+                    handleSearchChange('');
+                    handleResetLocation();
+                  }}
+                  className="bg-slate-950 hover:bg-slate-805 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all"
+                >
+                  Clear Search
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Split layout: Results on Left, Rack Visualizer on Right */
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              {/* Left Column: Search Results Cards (45% on desktop / 5 cols) */}
+              <div className="lg:col-span-5 space-y-4 max-h-[750px] overflow-y-auto pr-1">
+                <div className="grid grid-cols-1 gap-4">
+                  {filteredItems.map((item) => (
+                    <InventoryCard
+                      key={item._id}
+                      item={item}
+                      searchQuery={searchQuery}
+                      onLocate={handleLocateItem}
+                      isLocated={selectedItem && selectedItem._id === item._id}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Right Column: Hero Physical Storage Location Visualizer (55% on desktop / 7 cols) */}
+              <div ref={visualizerRef} className="lg:col-span-7 space-y-6 sticky top-6">
+                <StorageVisualizer
+                  selectedDrawer={selectedDrawer}
+                  location={selectedItem?.location}
+                  item={selectedItem}
+                  onReset={handleResetLocation}
+                />
+
+                {/* Storage Location Info Panel (if an item is selected) */}
+                {selectedItem ? (
+                  <StorageLocationPanel
+                    location={selectedItem.location}
+                    item={selectedItem}
+                  />
+                ) : (
+                  <div className="bg-slate-900/50 border border-slate-800/60 p-4 rounded-2xl text-center text-slate-500 text-xs">
+                    Click <strong className="text-indigo-400">LOCATE</strong> on any search result to open its physical storage drawer.
+                  </div>
+                )}
+              </div>
+            </div>
           )}
-          
+        </div>
+      ) : (
+        /* Default View: Grid Layout for Cards */
+        <div className="space-y-8 animate-fadeIn">
+          {/* Card Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredItems.map((item) => (
-              <InventoryCard key={item._id} item={item} searchQuery={searchQuery} />
+              <InventoryCard
+                key={item._id}
+                item={item}
+                searchQuery={searchQuery}
+                onLocate={handleLocateItem}
+                isLocated={selectedItem && selectedItem._id === item._id}
+              />
             ))}
           </div>
         </div>
