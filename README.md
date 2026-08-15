@@ -202,3 +202,27 @@ All routes are mounted under `/api/inventory` (mapped in [`backend/src/routes/in
   }
 }
 ```
+
+---
+
+## Phase 3: Add Inventory Item UI
+
+We implemented the core user interface layout and forms for registering new product records.
+
+### 1. Dedicated Add Route
+*   **Route Path**: `/inventory/add`
+*   **Component**: [`frontend/src/pages/AddInventory.jsx`](file:///D:/Inventory-Management-System/frontend/src/pages/AddInventory.jsx)
+
+### 2. Form Fields & Client Validations
+*   **Item Name**: Text input (required, trimmed, max length 100). Displays error if blank.
+*   **Stock Quantity**: Integer number input (required, min 0). Validates decimals or negative values before submission.
+*   **Location Section**: String code (required, uppercase).
+*   **Location Storage Unit**: Integer number input (required, min 1).
+*   **Location Box Number**: Integer number input (required, min 1).
+*   **Generated Location Code**: A read-only preview text box that automatically concatenates Section + Storage Unit + Box values (e.g., section `A` + unit `3` + box `19` = `A319`).
+*   **Image URL**: String (optional). Renders a live visual preview thumbnail of the pasted URL.
+
+### 3. API Integration & Routing
+*   Requests are sent to the relative `/api/inventory` route.
+*   During submission, the form changes state (loading indicators active, buttons disabled, preventing duplicate submit events).
+*   Success events redirect the user to `/inventory` with a flash banner alert displaying the newly created item.
