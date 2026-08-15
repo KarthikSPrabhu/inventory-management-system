@@ -2,7 +2,7 @@
 
 A full-stack application designed to track inventories and monitor item locations across multiple storage sites. 
 
-This repository currently hosts the **Phase 1: Project Foundation** codebase.
+This repository hosts the **Phase 2: Inventory Database & CRUD API** codebase.
 
 ---
 
@@ -16,7 +16,7 @@ This repository currently hosts the **Phase 1: Project Foundation** codebase.
 
 ### Backend
 - **Node.js** & **Express.js**
-- **Mongoose & MongoDB** (Database driver & configuration)
+- **Mongoose & MongoDB Atlas** (Database driver & configuration)
 - **Cors** (Cross-Origin Resource Sharing)
 - **Dotenv** (Environment variables)
 
@@ -29,10 +29,10 @@ Inventory-Management-System/
 ├── backend/                  # Express REST API
 │   ├── src/
 │   │   ├── config/          # Connection configs (db.js)
-│   │   ├── controllers/      # Route handler logics [.gitkeep]
+│   │   ├── controllers/      # inventoryController.js (CRUD controllers)
 │   │   ├── middleware/       # Custom middlewares [.gitkeep]
-│   │   ├── models/           # Mongoose schemas [.gitkeep]
-│   │   ├── routes/           # REST endpoints definitions [.gitkeep]
+│   │   ├── models/           # InventoryItem.js (Mongoose schema)
+│   │   ├── routes/           # inventoryRoutes.js (REST endpoints)
 │   │   └── server.js         # Entry main express application script
 │   ├── .env                  # Port and MONGODB_URI configurations (git-ignored)
 │   ├── .env.example          # Environment variables template
@@ -84,13 +84,13 @@ npm install
    ```bash
    cp backend/.env.example backend/.env
    ```
-2. Open `backend/.env` and update configurations with your MongoDB URI if necessary:
+2. Open `backend/.env` and update configurations with your MongoDB Atlas connection string:
    ```ini
    PORT=5000
-   MONGODB_URI=mongodb://localhost:27017/inventory_db
+   MONGODB_URI=mongodb+srv://<username>:<password>@<cluster-address>/<db-name>?retryWrites=true&w=majority
    ```
 
-*(Note: actual `.env` files are ignored by git in `.gitignore` to protect production and local secrets).*
+*(Note: actual `.env` files are ignored by git in `.gitignore` to protect credentials).*
 
 ### 3. Execution
 
@@ -118,9 +118,87 @@ Vite will start the client server on port `5173`. Open your browser and navigate
 
 ---
 
-## System Health Diagnostics
+## Phase 2: Inventory Database & CRUD API
 
-In Phase 1, the frontend dashboard requests server status through its relative path proxy.
-If the backend server is active:
-- The dashboard status indicator turns green, displaying **"Online"**.
-- It shows the raw JSON payload returned from the `/api/health` API.
+We use **MongoDB Atlas** as our remote database provider and **Mongoose** as our ODM. 
+
+### 1. InventoryItem Schema
+
+Located at [`backend/src/models/InventoryItem.js`](file:///D:/Inventory-Management-System/backend/src/models/InventoryItem.js).
+
+*   `name`: String, required, trimmed, minlength 1, maxlength 100.
+*   `image`: String, optional.
+*   `quantity`: Number, required, integer, min 0, default 0.
+*   `location`: Location object containing:
+    *   `section`: String, required, trimmed, uppercase.
+    *   `storageUnit`: Number, required, integer, min 1.
+    *   `box`: Number, required, integer, min 1.
+    *   `code`: String, required, trimmed, uppercase.
+*   `timestamps`: `createdAt` and `updatedAt` are generated automatically.
+
+### 2. Location Code Verification Rule
+The location code is derived directly from the section name, storage unit number, and box number:
+$$\text{code} = \text{section} + \text{storageUnit} + \text{box}$$
+
+For example:
+*   `section = "A"`, `storageUnit = 3`, `box = 19` $\implies$ `code = "A319"`.
+
+Mismatched location details (e.g. sending `A`, `3`, `19` but code as `A320`) are rejected with `400 Bad Request`.
+
+### 3. REST API Endpoints
+
+All routes are mounted under `/api/inventory` (mapped in [`backend/src/routes/inventoryRoutes.js`](file:///D:/Inventory-Management-System/backend/src/routes/inventoryRoutes.js)):
+
+| Method | Endpoint | Description | Request Body | Response Code (Success) |
+| :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/api/health` | Service status health check | None | 200 |
+| **POST** | `/api/inventory` | Create a new item | JSON (Item details) | 201 |
+| **GET** | `/api/inventory` | Get all inventory items | None | 200 |
+| **GET** | `/api/inventory/:id` | Get single inventory item by ID | None | 200 |
+| **PUT** | `/api/inventory/:id` | Update inventory item fields | JSON (Fields to change) | 200 |
+| **DELETE**| `/api/inventory/:id` | Delete inventory item by ID | None | 200 |
+
+### 4. Example API Request (Create Item)
+
+**Request**:
+`POST /api/inventory`
+
+*Headers*:
+`Content-Type: application/json`
+
+*Body*:
+```json
+{
+  "name": "ESP32 DevKit V1",
+  "quantity": 12,
+  "location": {
+    "section": "A",
+    "storageUnit": 3,
+    "box": 19,
+    "code": "A319"
+  }
+}
+```
+
+**Response**:
+`Status: 201 Created`
+```json
+{
+  "success": true,
+  "data": {
+    "name": "ESP32 DevKit V1",
+    "image": "",
+    "quantity": 12,
+    "location": {
+      "section": "A",
+      "storageUnit": 3,
+      "box": 19,
+      "code": "A319"
+    },
+    "_id": "6a8069378c740fd509f8dfa4",
+    "createdAt": "2026-08-15T13:27:19.398Z",
+    "updatedAt": "2026-08-15T13:27:19.398Z",
+    "__v": 0
+  }
+}
+```

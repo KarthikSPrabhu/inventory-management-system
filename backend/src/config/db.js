@@ -1,19 +1,38 @@
 const mongoose = require('mongoose');
 
 const connectDB = async () => {
-  try {
-    const mongoURI = process.env.MONGODB_URI;
-    
-    if (!mongoURI) {
-      console.warn('WARNING: MONGODB_URI is not defined in environment variables. Connection skipped or deferred.');
-      return;
-    }
+  const mongoURI = process.env.MONGODB_URI;
+  
+  if (!mongoURI) {
+    console.error('FATAL DATABASE ERROR: MONGODB_URI is not defined in environment variables.');
+    console.error('Please configure a valid MONGODB_URI inside backend/.env before starting the server.');
+    process.exit(1);
+  }
 
+  // Safely extract host details for secure logging (masking usernames and passwords)
+  let safeHost = 'database host';
+  try {
+    const match = mongoURI.match(/@([^/?#]+)/);
+    if (match) {
+      safeHost = match[1];
+    } else {
+      const hostMatch = mongoURI.match(/\/\/([^/?#]+)/);
+      if (hostMatch) {
+        safeHost = hostMatch[1];
+      }
+    }
+  } catch (e) {
+    // Parse fallback
+  }
+
+  try {
     const conn = await mongoose.connect(mongoURI);
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
+    console.log(`MongoDB Connected successfully to host: ${conn.connection.host}`);
   } catch (error) {
-    console.error(`MongoDB Connection Error: ${error.message}`);
-    console.warn('The server is running, but database connection has failed. Please verify that MongoDB is running locally or check your connection string.');
+    console.error('FATAL DATABASE ERROR: MongoDB connection failed.');
+    console.error(`Attempted Connection Host: ${safeHost}`);
+    console.error(`Connection Error Details: ${error.message}`);
+    process.exit(1);
   }
 };
 
