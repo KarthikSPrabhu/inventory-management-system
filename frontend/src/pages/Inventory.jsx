@@ -5,6 +5,7 @@ import InventoryCard from '../components/inventory/InventoryCard';
 import InventoryEmptyState from '../components/inventory/InventoryEmptyState';
 import StorageVisualizer from '../components/storage/StorageVisualizer';
 import StorageLocationPanel from '../components/storage/StorageLocationPanel';
+import TakeItemModal from '../components/inventory/TakeItemModal';
 import { getPhysicalDrawerNumber } from '../config/storageConfig';
 
 // Skeleton Loader Card component
@@ -36,10 +37,16 @@ function Inventory() {
   const [flashMessage, setFlashMessage] = useState('');
   
   // Two-way state management:
-  // selectedItem - item chosen via LOCATE button
+  // selectedItem - item chosen via clicking an item card
   // activeBoxDrawer - box chosen via clicking Box 1-6 on the physical rack
+  // isRackBoxFilter - true ONLY when a physical rack drawer is clicked directly to filter contents
   const [selectedItem, setSelectedItem] = useState(null);
   const [activeBoxDrawer, setActiveBoxDrawer] = useState(0);
+  const [isRackBoxFilter, setIsRackBoxFilter] = useState(false);
+
+  // Phase 9: Take Item Modal state
+  const [takeItemTarget, setTakeItemTarget] = useState(null);
+  const [isTakeModalOpen, setIsTakeModalOpen] = useState(false);
 
   // Fetch all items from Atlas
   const loadInventory = async () => {
@@ -86,16 +93,19 @@ function Inventory() {
     }
   };
 
-  // ITEM -> DRAWER: Clicking LOCATE on an item card
+  // ITEM -> DRAWER: Clicking an item card
+  // Highlights the item and opens its drawer on the storage visualizer WITHOUT hiding other items!
   const handleLocateItem = (item) => {
     if (selectedItem && selectedItem._id === item._id) {
       // Deselect
       setSelectedItem(null);
       setActiveBoxDrawer(0);
+      setIsRackBoxFilter(false);
     } else {
       setSelectedItem(item);
       const drawerNum = getPhysicalDrawerNumber(item.location);
       setActiveBoxDrawer(drawerNum);
+      setIsRackBoxFilter(false); // Keeps all catalog items visible!
 
       // Scroll to physical storage on mobile view
       if (window.innerWidth < 1024 && visualizerRef.current) {
@@ -108,12 +118,14 @@ function Inventory() {
 
   // DRAWER -> ITEMS: Clicking Box 1..6 directly on the storage visualizer
   const handleSelectBoxDrawer = (drawerNum) => {
-    if (activeBoxDrawer === drawerNum) {
+    if (activeBoxDrawer === drawerNum && isRackBoxFilter) {
       // Toggle close on second click
       setActiveBoxDrawer(0);
       setSelectedItem(null);
+      setIsRackBoxFilter(false);
     } else {
       setActiveBoxDrawer(drawerNum);
+      setIsRackBoxFilter(true);
       const itemsInDrawer = items.filter((it) => getPhysicalDrawerNumber(it.location) === drawerNum);
       if (itemsInDrawer.length > 0) {
         setSelectedItem(itemsInDrawer[0]);
@@ -127,12 +139,31 @@ function Inventory() {
   const handleResetStorageView = () => {
     setActiveBoxDrawer(0);
     setSelectedItem(null);
+    setIsRackBoxFilter(false);
+  };
+
+  // Open Take Item Modal
+  const handleOpenTakeModal = (item) => {
+    setTakeItemTarget(item);
+    setIsTakeModalOpen(true);
+  };
+
+  // Close Take Item Modal
+  const handleCloseTakeModal = () => {
+    setIsTakeModalOpen(false);
+    setTakeItemTarget(null);
+  };
+
+  // Handle successful withdrawal
+  const handleTakeSuccess = (flashMsg) => {
+    setFlashMessage(flashMsg);
+    loadInventory(); // Refresh items from Atlas to update quantities in real time
   };
 
   // Client-side search & box drawer filtering
   const filteredItems = items.filter((item) => {
-    // When a physical box drawer is selected, ONLY show items assigned to that drawer!
-    if (activeBoxDrawer > 0) {
+    // Only filter out other items if user explicitly clicked a physical box on the rack visualizer directly!
+    if (isRackBoxFilter && activeBoxDrawer > 0) {
       const itemDrawer = getPhysicalDrawerNumber(item.location);
       if (itemDrawer !== activeBoxDrawer) return false;
     }
@@ -269,7 +300,7 @@ function Inventory() {
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  {activeBoxDrawer > 0 ? `Box ${activeBoxDrawer} Contents` : 'Inventory Catalog'}
+                  {isRackBoxFilter && activeBoxDrawer > 0 ? `Box ${activeBoxDrawer} Contents` : 'Inventory Catalog'}
                 </span>
                 <span className="bg-slate-900 border border-slate-800 text-indigo-400 font-mono text-[11px] font-bold px-2 py-0.5 rounded-md">
                   {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'}
@@ -295,8 +326,7 @@ function Inventory() {
               /* Scrollable Cards Grid for Inventory Items */
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[780px] overflow-y-auto pr-1">
                 {filteredItems.map((item) => {
-                  const itemDrawerNum = getPhysicalDrawerNumber(item.location);
-                  const isDrawerActive = activeBoxDrawer > 0 && itemDrawerNum === activeBoxDrawer;
+                  const isSelected = selectedItem && selectedItem._id === item._id;
                   
                   return (
                     <InventoryCard
@@ -304,7 +334,8 @@ function Inventory() {
                       item={item}
                       searchQuery={searchQuery}
                       onLocate={handleLocateItem}
-                      isLocated={selectedItem && selectedItem._id === item._id || isDrawerActive}
+                      onTakeItem={handleOpenTakeModal}
+                      isLocated={isSelected}
                     />
                   );
                 })}
@@ -334,6 +365,14 @@ function Inventory() {
 
         </div>
       )}
+
+      {/* Phase 9: Take Item Modal */}
+      <TakeItemModal
+        item={takeItemTarget}
+        isOpen={isTakeModalOpen}
+        onClose={handleCloseTakeModal}
+        onSuccess={handleTakeSuccess}
+      />
     </div>
   );
 }

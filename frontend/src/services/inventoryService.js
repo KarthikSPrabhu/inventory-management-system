@@ -51,3 +51,131 @@ export const getInventoryItemById = async (id) => {
   return response.json();
 };
 
+// Record inventory item withdrawal (Phase 9)
+export const createUsageRecord = async (usageData) => {
+  const response = await fetch('/api/usage', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(usageData),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.message || 'Unable to complete the withdrawal. Please try again.');
+  }
+  return data;
+};
+
+// Fetch all usage records (Phase 9)
+export const getUsageRecords = async () => {
+  const response = await fetch('/api/usage');
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to fetch usage records');
+  }
+  return response.json();
+};
+
+// Fetch usage records for single item (Phase 9)
+export const getItemUsageRecords = async (itemId) => {
+  const response = await fetch(`/api/usage/item/${itemId}`);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to fetch item usage records');
+  }
+  return response.json();
+};
+
+// Fetch all projects (Phase 9)
+export const getProjects = async () => {
+  const response = await fetch('/api/projects');
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to fetch projects');
+  }
+  return response.json();
+};
+
+// Create a new project (Phase 9)
+export const createProject = async (projectData) => {
+  const response = await fetch('/api/projects', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(projectData),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to create project');
+  }
+  return data;
+};
+
+// Fetch project details by ID (Phase 9)
+export const getProjectById = async (id) => {
+  const response = await fetch(`/api/projects/${id}`);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to fetch project details');
+  }
+  return response.json();
+};
+
+// Fetch aggregated project usage (Phase 9)
+export const getProjectUsage = async (id) => {
+  const response = await fetch(`/api/projects/${id}/usage`);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to fetch project usage');
+  }
+  return response.json();
+};
+
+// Fetch project suggestions for an item (Phase 9)
+export const getProjectSuggestions = async (itemId) => {
+  const url = itemId ? `/api/projects/suggestions?itemId=${itemId}` : '/api/projects/suggestions';
+  const response = await fetch(url);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to fetch project suggestions');
+  }
+  return response.json();
+};
+
+// Update project status / details (Phase 9)
+export const updateProject = async (id, updateData) => {
+  const response = await fetch(`/api/projects/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(updateData),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to update project');
+  }
+  return data;
+};
+
+// Delete project (Phase 9)
+export const deleteProject = async (id) => {
+  const response = await fetch(`/api/projects/${id}`, {
+    method: 'DELETE',
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to delete project');
+  }
+  return data;
+};
+
+
+
+

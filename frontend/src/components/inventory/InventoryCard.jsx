@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 
-function InventoryCard({ item, searchQuery, onLocate, isLocated }) {
+function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem }) {
   const { _id, name, image, quantity, location } = item;
   const { section, storageUnit, box, code } = location || {};
   const [copied, setCopied] = useState(false);
@@ -33,7 +33,7 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated }) {
   // Clipboard copy handler
   const handleCopy = async (e) => {
     e.preventDefault();
-    e.stopPropagation(); // Avoid triggering navigation
+    e.stopPropagation(); // Avoid triggering locate
     if (!code) return;
     
     try {
@@ -61,13 +61,16 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated }) {
   }
 
   return (
-    <div className={`
-      bg-slate-900 border-2 rounded-2xl overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 flex flex-col group
-      ${isLocated
-        ? 'border-indigo-500/80 shadow-[0_0_25px_rgba(99,102,241,0.25)] ring-1 ring-indigo-500/30'
-        : 'border-slate-800/80 hover:border-slate-700/80'
-      }
-    `}>
+    <div
+      onClick={() => onLocate && onLocate(item)}
+      className={`
+        bg-slate-900 border-2 rounded-2xl overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 flex flex-col group cursor-pointer select-none
+        ${isLocated
+          ? 'border-indigo-500/80 shadow-[0_0_25px_rgba(99,102,241,0.25)] ring-1 ring-indigo-500/30'
+          : 'border-slate-800/80 hover:border-slate-700/80'
+        }
+      `}
+    >
       {/* Product Image preview / placeholder window */}
       <div className="h-44 bg-slate-950/80 border-b border-slate-850 flex items-center justify-center relative overflow-hidden shrink-0 select-none">
         {image && image.trim() ? (
@@ -155,30 +158,32 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated }) {
           </div>
         </div>
 
-        {/* Action Buttons Row: LOCATE & DETAILS */}
+        {/* Action Buttons Row: TAKE ITEM & DETAILS */}
         <div className="pt-1 flex items-center gap-2">
-          {onLocate ? (
+          {onTakeItem ? (
             <button
               onClick={(e) => {
                 e.preventDefault();
-                onLocate(item);
+                e.stopPropagation();
+                if (quantity > 0) onTakeItem(item);
               }}
-              className={`flex-1 font-extrabold text-xs px-3 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm ${
-                isLocated
-                  ? 'bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-400 shadow-indigo-600/30 ring-2 ring-indigo-500/40'
-                  : 'bg-indigo-500/10 hover:bg-indigo-600 text-indigo-400 hover:text-white border border-indigo-500/30 hover:border-indigo-500'
+              disabled={quantity === 0}
+              className={`flex-1 font-extrabold text-xs px-3 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                quantity > 0
+                  ? 'bg-purple-600/15 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/30 cursor-pointer shadow-sm'
+                  : 'bg-slate-950 text-slate-600 border border-slate-850 cursor-not-allowed opacity-50'
               }`}
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M20 12H4m8-8l-8 8 8 8" />
               </svg>
-              <span>{isLocated ? 'LOCATED' : 'LOCATE'}</span>
+              <span>TAKE ITEM</span>
             </button>
           ) : null}
 
           <Link
             to={`/inventory/${_id}`}
+            onClick={(e) => e.stopPropagation()}
             className="flex-1 bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-350 hover:text-white font-bold text-xs px-3 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1"
           >
             <span>Details</span>

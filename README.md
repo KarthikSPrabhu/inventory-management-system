@@ -356,4 +356,52 @@ We completely restructured the application's user experience into a single, unif
 ### 3. Two-Way Interactive Navigation
 * **Item $\rightarrow$ Drawer**: Clicking `[ LOCATE ]` on any inventory card opens its mapped physical drawer (1–6) on the right storage panel.
 * **Drawer $\rightarrow$ Items**: Clicking any physical **Box 1 to 6** on the storage rack image instantly switches the rack image (`1..6-removebg-preview.png`), displays all items stored in that drawer, and highlights them.
+
+---
+
+## Phase 9: Project Management & Inventory Usage
+
+We expanded the application into a complete **Inventory & Project Management System** with persistent project records, intelligent project suggestions, inventory withdrawal tracking, and aggregated component usage metrics.
+
+### 1. Mongoose Data Models
+* **Project Model**: [`backend/src/models/Project.js`](file:///D:/Inventory-Management-System/backend/src/models/Project.js)
+  * `name`: String (required, unique, trimmed).
+  * `description`: String (optional, max 500 chars).
+  * `status`: String enum (`active`, `completed`, `archived`, default `active`).
+  * `timestamps`: `createdAt`, `updatedAt`.
+* **InventoryUsage Model**: [`backend/src/models/InventoryUsage.js`](file:///D:/Inventory-Management-System/backend/src/models/InventoryUsage.js)
+  * `item`: ObjectId reference pointing to `InventoryItem` (required).
+  * `project`: ObjectId reference pointing to `Project` (required).
+  * `quantity`: Number (required positive integer $\ge 1$).
+  * `location`: String (recorded location code at withdrawal time).
+  * `notes`: String (optional, max 500 chars).
+  * `timestamps`: `createdAt`, `updatedAt`.
+
+### 2. REST API Endpoints
+Project routes mounted under `/api/projects` in [`backend/src/routes/projectRoutes.js`](file:///D:/Inventory-Management-System/backend/src/routes/projectRoutes.js) and withdrawal routes mounted under `/api/usage` in [`backend/src/routes/usageRoutes.js`](file:///D:/Inventory-Management-System/backend/src/routes/usageRoutes.js):
+
+| Method | Endpoint | Description | Request Body / Query | Response |
+| :--- | :--- | :--- | :--- | :--- |
+| **POST** | `/api/projects` | Create new persistent project | `{ name, description, status }` | 201 Created |
+| **GET** | `/api/projects` | List all projects with usage stats | None | 200 OK |
+| **GET** | `/api/projects/suggestions` | Intelligent project suggestions | `?itemId=ITEM_ID` | 200 OK |
+| **GET** | `/api/projects/:id` | Get project details by ID | None | 200 OK |
+| **PATCH** | `/api/projects/:id` | Update project status/details | `{ name, description, status }` | 200 OK |
+| **GET** | `/api/projects/:id/usage` | Aggregated components used by project | None | 200 OK |
+| **POST** | `/api/usage` | Record item withdrawal & reduce stock | `{ itemId, projectId, quantity, notes }` | 201 Created |
+
+### 3. Intelligent Ranking & Recommendation Logic
+* `GET /api/projects/suggestions?itemId=ITEM_ID` checks historical `InventoryUsage` documents for `itemId`.
+* Projects that previously used `itemId` are marked with `usedBefore: true` (`"Used this item before"`) and ranked **FIRST** in the project selector. Remaining active projects follow.
+
+### 4. Component Usage Aggregation
+* `GET /api/projects/:id/usage` aggregates multiple withdrawal transactions of the same item into a single total (e.g. 3 units + 2 units = **5 units total**), displaying current item locations even if stock is exhausted.
+
+### 5. UI Architecture & Navigation
+* **Navigation Tabs**: Top header bar features **Inventory** (`/inventory`) and **Projects** (`/projects`) navigation.
+* **Projects Page**: [`frontend/src/pages/Projects.jsx`](file:///D:/Inventory-Management-System/frontend/src/pages/Projects.jsx) lists project cards with status badges (`Active`, `Completed`, `Archived`), item usage counters, search filtering, and `+ Create Project` modal.
+* **Project Details Page**: [`frontend/src/pages/ProjectDetails.jsx`](file:///D:/Inventory-Management-System/frontend/src/pages/ProjectDetails.jsx) displays aggregated components used, item location codes, and status toggles.
+* **Take Item Modal**: [`frontend/src/components/inventory/TakeItemModal.jsx`](file:///D:/Inventory-Management-System/frontend/src/components/inventory/TakeItemModal.jsx) provides ranked project dropdowns and inline project creation.
+
+
 

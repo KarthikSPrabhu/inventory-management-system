@@ -24,6 +24,14 @@ app.use(express.urlencoded({ extended: true }));
 const inventoryRoutes = require('./routes/inventoryRoutes');
 app.use('/api/inventory', inventoryRoutes);
 
+// Register Usage / Withdrawal REST routes
+const usageRoutes = require('./routes/usageRoutes');
+app.use('/api/usage', usageRoutes);
+
+// Register Project REST routes
+const projectRoutes = require('./routes/projectRoutes');
+app.use('/api/projects', projectRoutes);
+
 // Request Logger (simple middleware for beginner readability)
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
