@@ -284,3 +284,23 @@ We implemented a fast, client-side, real-time query interface to locate inventor
 ### 4. Text Highlighting & Pill Suggestions
 *   Matching substrings within product names and location codes are dynamically wrapped in a visual highlight container.
 *   Includes quick-suggestion click badges (Try: `ESP32`, `A319`, `Section A`, `Unit 3`, `Box 19`) under the search input.
+
+---
+
+## Phase 6: Visual Storage Location System
+
+We implemented a visual location mapping structure to translate location codes into clear, step-by-step physical coordinates, and integrated clipboard support.
+
+### 1. Visual Location Map Component
+*   **Component**: [`frontend/src/components/inventory/LocationDisplay.jsx`](file:///D:/Inventory-Management-System/frontend/src/components/inventory/LocationDisplay.jsx)
+*   **Visual Hierarchy Flow**: Represents location mappings vertically:
+    `Section` (e.g., A) $\rightarrow$ `Storage Unit` (e.g., 3) $\rightarrow$ `Box` (e.g., 19) $\rightarrow$ `Location Code` (e.g., A319) using distinct step indicators.
+
+### 2. Clipboard API Integration
+*   Adds a visual copy action button next to location code badges in both catalog cards and item details.
+*   Uses the native browser Clipboard API (`navigator.clipboard.writeText`) to copy codes with zero external dependencies.
+*   Displays a temporary green confirmation checkmark saying `"Copied!"` for 2 seconds upon success.
+
+### 3. Page Layout Restructuring
+*   **Catalog Cards**: Redesigned the coordinates section to arrange section, unit, and box values horizontally, conserving space while keeping location codes and copy actions prominent.
+*   **Details View (`/inventory/:id`)**: Incorporated the `LocationDisplay` card as the primary visual component on the right-hand panel, giving storage tracking coordinates the highest visual priority on the page.

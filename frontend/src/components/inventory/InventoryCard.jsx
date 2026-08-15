@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 function InventoryCard({ item, searchQuery }) {
   const { _id, name, image, quantity, location } = item;
   const { section, storageUnit, box, code } = location || {};
+  const [copied, setCopied] = useState(false);
 
   // Text highlighting function to wrap matches in styled mark tags
   const highlightText = (text, query) => {
@@ -27,6 +28,21 @@ function InventoryCard({ item, searchQuery }) {
         )}
       </span>
     );
+  };
+
+  // Clipboard copy handler
+  const handleCopy = async (e) => {
+    e.preventDefault();
+    e.stopPropagation(); // Avoid triggering navigation to /inventory/:id when clicking copy
+    if (!code) return;
+    
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy location code: ', err);
+    }
   };
 
   // Determine stock quantity indicator styling
@@ -83,7 +99,7 @@ function InventoryCard({ item, searchQuery }) {
           <div className="flex items-center gap-2">
             <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-semibold border ${stockBadgeClass}`}>
               <span className={`w-1.5 h-1.5 rounded-full ${
-                quantity > 5 ? 'bg-emerald-400' : quantity > 0 ? 'bg-amber-400' : 'bg-rose-555'
+                quantity > 5 ? 'bg-emerald-400' : quantity > 0 ? 'bg-amber-400' : 'bg-rose-500'
               }`}></span>
               {stockText}
             </span>
@@ -91,22 +107,50 @@ function InventoryCard({ item, searchQuery }) {
         </div>
 
         {/* Location information */}
-        <div className="space-y-2 pt-3 border-t border-slate-855/60 text-xs">
+        <div className="space-y-3 pt-3 border-t border-slate-850/60 text-xs">
           <div className="flex items-center justify-between">
-            <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Location Code</span>
-            <span className="font-mono text-xs font-bold text-indigo-400 bg-slate-950 px-2 py-0.5 rounded-md border border-slate-850">
-              📍 {highlightText(code, searchQuery)}
-            </span>
+            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Location Code</span>
+            
+            {/* Badge + Copy Trigger */}
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono text-xs font-bold text-indigo-400 bg-slate-950 px-2.5 py-0.5 rounded-lg border border-slate-850">
+                📍 {highlightText(code, searchQuery)}
+              </span>
+              
+              <button
+                onClick={handleCopy}
+                title="Copy location code"
+                className={`p-1.5 rounded-md border transition-colors flex items-center justify-center ${
+                  copied 
+                    ? 'bg-emerald-500/10 text-emerald-450 border-emerald-500/25' 
+                    : 'bg-slate-950 hover:bg-slate-850 text-slate-550 hover:text-slate-300 border-slate-850 hover:border-slate-700'
+                }`}
+              >
+                {copied ? (
+                  <svg className="w-3.5 h-3.5 text-emerald-450" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
 
-          <div className="text-slate-400 space-y-0.5">
-            <p>Section <strong className="text-white">{highlightText(section, searchQuery)}</strong></p>
-            <p className="text-slate-500">Storage Unit {storageUnit} &bull; Box {box}</p>
+          {/* Coordinates row */}
+          <div className="text-slate-400 flex items-center justify-between text-[11px] leading-tight">
+            <div>Sec: <strong className="text-white">{highlightText(section, searchQuery)}</strong></div>
+            <div className="text-slate-800 font-bold">&bull;</div>
+            <div>Unit: <strong className="text-white">{storageUnit}</strong></div>
+            <div className="text-slate-800 font-bold">&bull;</div>
+            <div>Box: <strong className="text-white">{box}</strong></div>
           </div>
         </div>
 
         {/* Actions button */}
-        <div className="pt-2">
+        <div className="pt-1">
           <Link
             to={`/inventory/${_id}`}
             className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-350 hover:text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5"
