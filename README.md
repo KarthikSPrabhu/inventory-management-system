@@ -336,4 +336,24 @@ We implemented an interactive, image-based physical storage locator that utilize
   * **Left Column (45%)**: Search results with `[ LOCATE ]` and `[ Details ]` buttons.
   * **Right Column (55%)**: Prominent Storage Rack visualizer + Location Info panel.
 * **Default State**: Opening `/inventory` without an active location selection shows the closed rack (`0-removebg-preview.png`).
-* **Locate Action**: Clicking `[ LOCATE ]` on any item card identifies its mapped physical drawer (1–6) and transitions the rack image to show that drawer open.
+* **Locate Action**: Clicking `[ LOCATE ]` on any item card identifies its mapped physical drawer (1–6) and transitions the rack image to show that drawer open.
+
+---
+
+## Phase 8: Unified Inventory Workspace
+
+We completely restructured the application's user experience into a single, unified **Physical Inventory Locator Workspace**.
+
+### 1. Unified Main Landing Experience
+* **Single Landing Page**: Opening `/` lands directly into `/inventory` (the unified Inventory Workspace).
+* **Simplified Sidebar Navigation**: Removed separate Dashboard, Inventory Items, and Add Item sidebar entries. Replaced with a single primary `Inventory` navigation entry.
+* **Top-Right Add Item Action**: Moved `[+ Add Item]` to the top right header of the main Inventory workspace.
+
+### 2. Permanent Physical Storage Panel
+* The Physical Storage visualizer panel is **permanently visible** on the right column (~35% width) on desktop browsers.
+* Eliminates separate page switching or modal toggling for storage tracking.
+
+### 3. Two-Way Interactive Navigation
+* **Item $\rightarrow$ Drawer**: Clicking `[ LOCATE ]` on any inventory card opens its mapped physical drawer (1–6) on the right storage panel.
+* **Drawer $\rightarrow$ Items**: Clicking any physical **Box 1 to 6** on the storage rack image instantly switches the rack image (`1..6-removebg-preview.png`), displays all items stored in that drawer, and highlights them.
+

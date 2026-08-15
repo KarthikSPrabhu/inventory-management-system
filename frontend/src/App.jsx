@@ -1,7 +1,6 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/layout/Layout';
-import Dashboard from './pages/Dashboard';
 import AddInventory from './pages/AddInventory';
 import Inventory from './pages/Inventory';
 import InventoryDetails from './pages/InventoryDetails';
@@ -11,7 +10,7 @@ function App() {
     <Router>
       <Layout>
         <Routes>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/" element={<Navigate to="/inventory" replace />} />
           <Route path="/inventory" element={<Inventory />} />
           <Route path="/inventory/add" element={<AddInventory />} />
           <Route path="/inventory/:id" element={<InventoryDetails />} />
