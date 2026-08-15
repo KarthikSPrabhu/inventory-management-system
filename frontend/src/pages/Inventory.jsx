@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, Link, useSearchParams } from 'react-router-dom';
 import { getInventoryItems } from '../services/inventoryService';
 import InventoryStats from '../components/inventory/InventoryStats';
 import InventoryCard from '../components/inventory/InventoryCard';
@@ -25,6 +25,9 @@ const SkeletonCard = () => (
 
 function Inventory() {
   const routerLocation = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchQuery = searchParams.get('search') || '';
+
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -67,6 +70,49 @@ function Inventory() {
     }
   }, [routerLocation]);
 
+  // Sync Search state with router URL query parameters
+  const handleSearchChange = (query) => {
+    if (query) {
+      setSearchParams({ search: query });
+    } else {
+      setSearchParams({});
+    }
+  };
+
+  // Client-side filtering logic
+  const filteredItems = items.filter((item) => {
+    if (!searchQuery.trim()) return true;
+
+    const query = searchQuery.trim().toLowerCase();
+    
+    const nameMatch = (item.name || '').toLowerCase().includes(query);
+    const codeMatch = (item.location?.code || '').toLowerCase().includes(query);
+    const sectionMatch = (item.location?.section || '').toLowerCase().includes(query);
+    
+    // Convert numeric fields to string for matching
+    const unitMatch = item.location?.storageUnit !== undefined && String(item.location.storageUnit).includes(query);
+    const boxMatch = item.location?.box !== undefined && String(item.location.box).includes(query);
+
+    return nameMatch || codeMatch || sectionMatch || unitMatch || boxMatch;
+  });
+
+  // Render Result Count Text
+  const renderResultCount = () => {
+    const count = filteredItems.length;
+    if (count === 1) {
+      return '1 item found';
+    }
+    return `${count} items found`;
+  };
+
+  const suggestions = [
+    { label: 'ESP32', term: 'ESP32' },
+    { label: 'A319', term: 'A319' },
+    { label: 'Section A', term: 'A' },
+    { label: 'Unit 3', term: '3' },
+    { label: 'Box 19', term: '19' }
+  ];
+
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* Header and Add Action */}
@@ -100,7 +146,7 @@ function Inventory() {
       {error && (
         <div className="bg-rose-500/10 border border-rose-500/25 p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 bg-rose-500/10 rounded-xl flex items-center justify-center text-rose-400 shrink-0">
+            <div className="h-10 w-10 bg-rose-500/10 rounded-xl flex items-center justify-center text-rose-455 shrink-0">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
@@ -112,22 +158,73 @@ function Inventory() {
           </div>
           <button
             onClick={loadInventory}
-            className="bg-rose-550/10 hover:bg-rose-500 text-rose-400 hover:text-white border border-rose-500/20 hover:border-transparent font-bold text-xs px-4 py-2 rounded-xl transition-all shadow-sm"
+            className="bg-rose-550/10 hover:bg-rose-500 text-rose-455 hover:text-white border border-rose-500/20 hover:border-transparent font-bold text-xs px-4 py-2 rounded-xl transition-all shadow-sm"
           >
             Try Again
           </button>
         </div>
       )}
 
-      {/* Summary Metrics Section (Visible only when not loading/error) */}
+      {/* Summary Metrics Section (Visible only when not loading/error and inventory is populated) */}
       {!loading && !error && items.length > 0 && (
         <InventoryStats items={items} />
+      )}
+
+      {/* Prominent Search bar Section */}
+      {!loading && !error && items.length > 0 && (
+        <div className="space-y-3">
+          <div className="relative">
+            {/* Search Icon */}
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            
+            {/* Input Element */}
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              placeholder="Search items, location code, or storage coordinates..."
+              className="w-full bg-slate-900 border border-slate-800/85 focus:border-indigo-500/60 rounded-2xl pl-12 pr-12 py-3.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none transition-colors shadow-lg"
+            />
+            
+            {/* Clear Input Icon (✕) */}
+            {searchQuery && (
+              <button
+                onClick={() => handleSearchChange('')}
+                className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-550 hover:text-slate-300 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+
+          {/* Quick Search Suggestions */}
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 px-1">
+            <span className="font-medium">Try:</span>
+            {suggestions.map((s) => (
+              <button
+                key={s.label}
+                onClick={() => handleSearchChange(s.term)}
+                className={`px-2.5 py-0.5 rounded-full border border-slate-850 bg-slate-900/40 text-slate-400 hover:text-white hover:border-slate-700 transition-colors ${
+                  searchQuery.toLowerCase() === s.term.toLowerCase() ? 'bg-indigo-950/20 text-indigo-400 border-indigo-500/20' : ''
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Items Container View */}
       {loading ? (
         /* Skeleton Grid Loader */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-fadeIn">
           <SkeletonCard />
           <SkeletonCard />
           <SkeletonCard />
@@ -135,18 +232,50 @@ function Inventory() {
         </div>
       ) : error ? (
         /* Fetch Error State Placeholder */
-        <div className="bg-slate-900 border border-slate-805/80 p-12 rounded-2xl text-center flex flex-col items-center justify-center">
+        <div className="bg-slate-900 border border-slate-800 p-12 rounded-2xl text-center flex flex-col items-center justify-center">
           <p className="text-xs text-slate-500 italic">Could not sync catalog with MongoDB Atlas.</p>
         </div>
       ) : items.length === 0 ? (
-        /* Empty State */
+        /* Database Empty State */
         <InventoryEmptyState />
+      ) : filteredItems.length === 0 ? (
+        /* Search Query No Results Empty State */
+        <div className="bg-slate-900 border border-slate-800/80 rounded-2xl p-12 text-center flex flex-col items-center justify-center space-y-4 animate-fadeIn">
+          <div className="h-16 w-16 rounded-full bg-slate-950 flex items-center justify-center text-rose-500/80 border border-slate-850 shadow-inner">
+            <svg className="w-7 h-7 stroke-[1.2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <div className="space-y-1">
+            <h4 className="text-base font-bold text-white tracking-tight">No inventory items found</h4>
+            <p className="text-xs text-slate-550 max-w-xs mx-auto">
+              We couldn't find matches for <span className="text-indigo-400 font-mono">"{searchQuery}"</span>. Try searching for an item name, location code, or storage section.
+            </p>
+          </div>
+          <div className="pt-2">
+            <button
+              onClick={() => handleSearchChange('')}
+              className="bg-slate-950 hover:bg-slate-805 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all"
+            >
+              Clear Search
+            </button>
+          </div>
+        </div>
       ) : (
         /* Responsive Cards Grid Layout */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {items.map((item) => (
-            <InventoryCard key={item._id} item={item} />
-          ))}
+        <div className="space-y-4 animate-fadeIn">
+          {/* Results count banner */}
+          {searchQuery && (
+            <p className="text-xs font-semibold text-indigo-400 px-1">
+              {renderResultCount()}
+            </p>
+          )}
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredItems.map((item) => (
+              <InventoryCard key={item._id} item={item} searchQuery={searchQuery} />
+            ))}
+          </div>
         </div>
       )}
     </div>

@@ -258,3 +258,29 @@ We refactored the catalog listings into an interactive card-based inventory dash
 ### 4. UI/UX Loading & Error States
 *   *Skeleton loaders*: Displays animated placeholder cards while queries are fetching.
 *   *Error alerts*: Shows a `"Unable to load inventory"` connection box containing a functional `"Try Again"` refresh button if API requests fail.
+
+---
+
+## Phase 5: Search & Locate Inventory
+
+We implemented a fast, client-side, real-time query interface to locate inventory items and coordinates instantly.
+
+### 1. Unified Search Input Box
+*   **Integrated inside**: `/inventory` (mapped in [`frontend/src/pages/Inventory.jsx`](file:///D:/Inventory-Management-System/frontend/src/pages/Inventory.jsx)).
+*   **Behavior**: Real-time filtering matching queries against name, location code, section, storage unit, and box coordinate fields.
+*   **Controls**: Includes a search magnifying icon and an `✕` reset control to instantly clear inputs.
+
+### 2. Searchable Fields & Case-Insensitive Filter
+*   `item.name` (case-insensitive text search)
+*   `item.location.code` (e.g. `A319`)
+*   `item.location.section` (e.g. Section `A`)
+*   `item.location.storageUnit` (e.g. Storage Unit `3`)
+*   `item.location.box` (e.g. Box `19`)
+
+### 3. URL Parameter & Synchronization
+*   Supports URL parameter bindings: opening `/inventory?search=ESP32` automatically populates the search bar and filters results on load.
+*   Typing in the search input automatically reflects in the browser address bar.
+
+### 4. Text Highlighting & Pill Suggestions
+*   Matching substrings within product names and location codes are dynamically wrapped in a visual highlight container.
+*   Includes quick-suggestion click badges (Try: `ESP32`, `A319`, `Section A`, `Unit 3`, `Box 19`) under the search input.

@@ -1,9 +1,33 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
-function InventoryCard({ item }) {
+function InventoryCard({ item, searchQuery }) {
   const { _id, name, image, quantity, location } = item;
   const { section, storageUnit, box, code } = location || {};
+
+  // Text highlighting function to wrap matches in styled mark tags
+  const highlightText = (text, query) => {
+    if (!query || !query.trim() || !text) return <span>{text}</span>;
+    
+    // Escape regex characters to avoid execution errors
+    const escapedQuery = query.trim().replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const regex = new RegExp(`(${escapedQuery})`, 'gi');
+    const parts = String(text).split(regex);
+    
+    return (
+      <span>
+        {parts.map((part, index) => 
+          regex.test(part) ? (
+            <mark key={index} className="bg-yellow-500/20 text-yellow-300 font-semibold px-0.5 rounded">
+              {part}
+            </mark>
+          ) : (
+            part
+          )
+        )}
+      </span>
+    );
+  };
 
   // Determine stock quantity indicator styling
   let stockBadgeClass = '';
@@ -21,7 +45,7 @@ function InventoryCard({ item }) {
   }
 
   return (
-    <div className="bg-slate-900 border border-slate-800/80 hover:border-slate-700/80 rounded-2xl overflow-hidden shadow-md hover:shadow-lg transition-all duration-205 flex flex-col group">
+    <div className="bg-slate-900 border border-slate-800/80 hover:border-slate-700/80 rounded-2xl overflow-hidden shadow-md hover:shadow-lg transition-all duration-200 flex flex-col group">
       {/* Product Image preview / placeholder window */}
       <div className="h-44 bg-slate-950/80 border-b border-slate-850 flex items-center justify-center relative overflow-hidden shrink-0 select-none">
         {image && image.trim() ? (
@@ -53,13 +77,13 @@ function InventoryCard({ item }) {
         {/* Title and Stock badge */}
         <div className="space-y-2">
           <h4 className="text-sm font-bold text-slate-100 group-hover:text-indigo-400 transition-colors line-clamp-2 min-h-[40px]">
-            {name}
+            {highlightText(name, searchQuery)}
           </h4>
           
           <div className="flex items-center gap-2">
             <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-semibold border ${stockBadgeClass}`}>
               <span className={`w-1.5 h-1.5 rounded-full ${
-                quantity > 5 ? 'bg-emerald-400' : quantity > 0 ? 'bg-amber-400' : 'bg-rose-500'
+                quantity > 5 ? 'bg-emerald-400' : quantity > 0 ? 'bg-amber-400' : 'bg-rose-555'
               }`}></span>
               {stockText}
             </span>
@@ -67,16 +91,16 @@ function InventoryCard({ item }) {
         </div>
 
         {/* Location information */}
-        <div className="space-y-2 pt-3 border-t border-slate-850/60 text-xs">
+        <div className="space-y-2 pt-3 border-t border-slate-855/60 text-xs">
           <div className="flex items-center justify-between">
             <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Location Code</span>
             <span className="font-mono text-xs font-bold text-indigo-400 bg-slate-950 px-2 py-0.5 rounded-md border border-slate-850">
-              📍 {code}
+              📍 {highlightText(code, searchQuery)}
             </span>
           </div>
 
           <div className="text-slate-400 space-y-0.5">
-            <p>Section <strong className="text-white">{section}</strong></p>
+            <p>Section <strong className="text-white">{highlightText(section, searchQuery)}</strong></p>
             <p className="text-slate-500">Storage Unit {storageUnit} &bull; Box {box}</p>
           </div>
         </div>
@@ -85,7 +109,7 @@ function InventoryCard({ item }) {
         <div className="pt-2">
           <Link
             to={`/inventory/${_id}`}
-            className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5"
+            className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-350 hover:text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5"
           >
             <span>View Details</span>
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
