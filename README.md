@@ -226,3 +226,35 @@ We implemented the core user interface layout and forms for registering new prod
 *   Requests are sent to the relative `/api/inventory` route.
 *   During submission, the form changes state (loading indicators active, buttons disabled, preventing duplicate submit events).
 *   Success events redirect the user to `/inventory` with a flash banner alert displaying the newly created item.
+
+---
+
+## Phase 4: Inventory Dashboard & Item Cards
+
+We refactored the catalog listings into an interactive card-based inventory dashboard featuring metrics, responsive layouts, and a dedicated details route.
+
+### 1. Catalog Dashboard & Summary Metrics
+*   **Route Path**: `/inventory`
+*   **Component**: [`frontend/src/pages/Inventory.jsx`](file:///D:/Inventory-Management-System/frontend/src/pages/Inventory.jsx)
+*   **Summary Stats Section**: Shows `Total Items` (number of database documents) and `Total Quantity` (cumulative sum of stock levels across all tracked items) at the top of the catalog page, computed dynamically from the client-side API payload.
+
+### 2. Inventory Item Cards
+*   **Component**: [`frontend/src/components/inventory/InventoryCard.jsx`](file:///D:/Inventory-Management-System/frontend/src/components/inventory/InventoryCard.jsx)
+*   **Visual Indicators**:
+    *   *Image Window*: Shows the item image URL (if valid) or a clean styled vector placeholder graphic.
+    *   *Stock Quantity Badges*: Matches three states based on quantity boundaries:
+        *   `In Stock` (qty > 5): Emerald badge.
+        *   `Low Stock` (qty 1 to 5): Amber warning badge.
+        *   `Out of Stock` (qty = 0): Rose error badge.
+    *   *Coordinate Badges*: Prominent `📍 Location Code` along with secondary unit, section, and box fields.
+    *   *Action Button*: Triggers routing link to detail view `[ View Details ]`.
+
+### 3. Detailed Item Route
+*   **Route Path**: `/inventory/:id`
+*   **Component**: [`frontend/src/pages/InventoryDetails.jsx`](file:///D:/Inventory-Management-System/frontend/src/pages/InventoryDetails.jsx)
+*   **Fields Displayed**: Fetches single item data from Mongoose database records, displaying details including image, name, stock status, full coordinates, and formatted `createdAt`/`updatedAt` logs.
+*   **Navigation Actions**: Offers `[ Back to Inventory ]` redirect link and a disabled `[ Edit Item ]` button (marked "Coming Soon").
+
+### 4. UI/UX Loading & Error States
+*   *Skeleton loaders*: Displays animated placeholder cards while queries are fetching.
+*   *Error alerts*: Shows a `"Unable to load inventory"` connection box containing a functional `"Try Again"` refresh button if API requests fail.

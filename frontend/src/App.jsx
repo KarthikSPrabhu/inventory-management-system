@@ -4,6 +4,7 @@ import Layout from './components/layout/Layout';
 import Dashboard from './pages/Dashboard';
 import AddInventory from './pages/AddInventory';
 import Inventory from './pages/Inventory';
+import InventoryDetails from './pages/InventoryDetails';
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/inventory" element={<Inventory />} />
           <Route path="/inventory/add" element={<AddInventory />} />
+          <Route path="/inventory/:id" element={<InventoryDetails />} />
         </Routes>
       </Layout>
     </Router>

@@ -37,3 +37,17 @@ export const checkHealth = async () => {
   }
   return response.json();
 };
+
+// Alias getItems to getInventoryItems for Phase 4 compliance
+export const getInventoryItems = getItems;
+
+// Fetch inventory item by ID
+export const getInventoryItemById = async (id) => {
+  const response = await fetch(`/api/inventory/${id}`);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to fetch inventory item details');
+  }
+  return response.json();
+};
+
