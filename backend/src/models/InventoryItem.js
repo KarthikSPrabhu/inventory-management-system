@@ -74,6 +74,15 @@ const InventoryItemSchema = new mongoose.Schema({
   location: {
     type: LocationSchema,
     required: [true, 'Location parameters are required']
+  },
+  lowStockThreshold: {
+    type: Number,
+    min: [0, 'Low stock threshold cannot be negative'],
+    default: 5,
+    validate: {
+      validator: Number.isInteger,
+      message: 'Low stock threshold must be an integer'
+    }
   }
 }, {
   timestamps: true

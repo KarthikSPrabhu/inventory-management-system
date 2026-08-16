@@ -8,6 +8,7 @@ function AddInventory() {
   // Field States
   const [name, setName] = useState('');
   const [quantity, setQuantity] = useState('0');
+  const [lowStockThreshold, setLowStockThreshold] = useState('5');
   const [section, setSection] = useState('');
   const [storageUnit, setStorageUnit] = useState('');
   const [box, setBox] = useState('');
@@ -48,6 +49,12 @@ function AddInventory() {
       errors.quantity = 'Quantity cannot be negative';
     }
 
+    // Low Stock Threshold Check (Integer >= 0)
+    const tVal = Number(lowStockThreshold);
+    if (lowStockThreshold !== '' && (isNaN(tVal) || !Number.isInteger(tVal) || tVal < 0)) {
+      errors.lowStockThreshold = 'Threshold must be a whole number >= 0';
+    }
+
     // 3. Location Section Check
     if (!sectionClean) {
       errors.section = 'Section is required';
@@ -86,6 +93,7 @@ function AddInventory() {
     const payload = {
       name: name.trim(),
       quantity: parseInt(quantity, 10),
+      lowStockThreshold: lowStockThreshold !== '' ? parseInt(lowStockThreshold, 10) : 5,
       image: image.trim(),
       location: {
         section: sectionClean,
@@ -147,23 +155,46 @@ function AddInventory() {
           )}
         </div>
 
-        {/* Quantity */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-bold text-slate-350 uppercase tracking-wide">Stock Quantity *</label>
-          <input
-            type="number"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            disabled={loading}
-            min="0"
-            step="1"
-            className={`w-full bg-slate-950 border rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors ${
-              fieldErrors.quantity ? 'border-rose-500/50' : 'border-slate-800'
-            }`}
-          />
-          {fieldErrors.quantity && (
-            <p className="text-[11px] text-rose-450 font-medium">{fieldErrors.quantity}</p>
-          )}
+        {/* Quantity & Low Stock Threshold */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-350 uppercase tracking-wide">Stock Quantity *</label>
+            <input
+              type="number"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              disabled={loading}
+              min="0"
+              step="1"
+              className={`w-full bg-slate-950 border rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors ${
+                fieldErrors.quantity ? 'border-rose-500/50' : 'border-slate-800'
+              }`}
+            />
+            {fieldErrors.quantity && (
+              <p className="text-[11px] text-rose-450 font-medium">{fieldErrors.quantity}</p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-350 uppercase tracking-wide">Low Stock Threshold</label>
+            <input
+              type="number"
+              value={lowStockThreshold}
+              onChange={(e) => setLowStockThreshold(e.target.value)}
+              disabled={loading}
+              min="0"
+              step="1"
+              placeholder="5"
+              className={`w-full bg-slate-950 border rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors ${
+                fieldErrors.lowStockThreshold ? 'border-rose-500/50' : 'border-slate-800'
+              }`}
+            />
+            {fieldErrors.lowStockThreshold ? (
+              <p className="text-[11px] text-rose-450 font-medium">{fieldErrors.lowStockThreshold}</p>
+            ) : (
+              <p className="text-[10px] text-slate-500 font-medium">Default: 5 units. Triggers Low Stock alert when stock $\le$ threshold.</p>
+            )}
+          </div>
         </div>
 
         {/* Location Section Header */}

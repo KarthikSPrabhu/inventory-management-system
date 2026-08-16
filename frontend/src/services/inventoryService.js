@@ -205,6 +205,53 @@ export const deleteProject = async (id) => {
   return data;
 };
 
+// Analytics API Services (Phase 12)
+export const getAnalyticsSummary = async (dateRange = 'all') => {
+  const response = await fetch(`/api/analytics/summary?dateRange=${dateRange}`);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Unable to load analytics summary.');
+  }
+  return response.json();
+};
+
+export const getAnalyticsMovement = async (dateRange = 'all') => {
+  const response = await fetch(`/api/analytics/movement?dateRange=${dateRange}`);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Unable to load movement analytics.');
+  }
+  return response.json();
+};
+
+export const getMostUsedItems = async (dateRange = 'all', limit = 5) => {
+  const response = await fetch(`/api/analytics/most-used-items?dateRange=${dateRange}&limit=${limit}`);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Unable to load most-used items.');
+  }
+  return response.json();
+};
+
+export const getMostUsedProjects = async (dateRange = 'all', limit = 5) => {
+  const response = await fetch(`/api/analytics/most-used-projects?dateRange=${dateRange}&limit=${limit}`);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Unable to load project consumption.');
+  }
+  return response.json();
+};
+
+export const getLowStockAnalytics = async () => {
+  const response = await fetch('/api/analytics/low-stock');
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Unable to load low stock items.');
+  }
+  return response.json();
+};
+
+
 
 
 

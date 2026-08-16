@@ -458,11 +458,38 @@ We implemented inventory restocking capabilities, allowing stock additions to ex
 * Unified history endpoint merges `InventoryStockIn` (stock added) and `InventoryUsage` (stock withdrawn) into a single normalized chronological timeline (`createdAt DESC`).
 * Supports `activityType` parameter (`all`, `stock_in`, `usage`).
 
-### 4. UI Components & Workflow
-* **Add Stock Button**: `[ + Add Stock ]` button added to inventory cards (`InventoryCard.jsx`), item details (`InventoryDetails.jsx`), and workspace views. Remnants active even for zero-stock items (`0 available`).
-* **Add Stock Modal**: [`frontend/src/components/inventory/AddStockModal.jsx`](file:///D:/Inventory-Management-System/frontend/src/components/inventory/AddStockModal.jsx) features item stock preview, quantity input, predefined reason dropdown, custom explanation field, notes textarea, and double submission protection (`Adding Stock...`).
-* **Unified History Page (`/history`)**: Added **Activity Type** filter dropdown (`[ All Activity ▼ ]`, `[ Stock In ]`, `[ Stock Out ]`). Displays Stock In cards (🟢 `+5 units`, `Stock Added`, `Reason: Purchased`) and Stock Out cards (🔴 `−3 units`, `Project`, `📍 Location Code`).
-* **Item Details View (`/inventory/:id`)**: Displays **Current Stock**, **Total Added**, **Total Used**, and combined chronological activity log.
+---
+
+## Phase 12: Inventory Analytics & Insights
+
+We implemented a focused **Analytics & Intelligence** page (`/analytics`) driven by real-time MongoDB Atlas data and aggregation pipelines.
+
+### 1. Data Model Enhancements
+* **`lowStockThreshold`**: Added configurable `lowStockThreshold` field to `InventoryItemSchema` ([`backend/src/models/InventoryItem.js`](file:///D:/Inventory-Management-System/backend/src/models/InventoryItem.js)), defaulting to `5` units for all items.
+* **Low Stock Status Logic**:
+  * `OUT OF STOCK`: `quantity === 0`
+  * `LOW STOCK`: `quantity > 0` and `quantity <= lowStockThreshold`
+  * `IN STOCK`: `quantity > lowStockThreshold`
+
+### 2. Analytics REST API (`/api/analytics`)
+Endpoints implemented in [`backend/src/controllers/analyticsController.js`](file:///D:/Inventory-Management-System/backend/src/controllers/analyticsController.js) using read-only MongoDB aggregations:
+
+| Method | Endpoint | Description | Request Query | Response |
+| :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/api/analytics/summary` | Distinct item count, total available units, low-stock count, out-of-stock count, stock in, stock out, net change | `?dateRange=today\|7days\|30days\|90days\|all` | `{ success, data: { totalItems, totalUnits, lowStockItems, outOfStockItems, stockIn, stockOut, netChange } }` |
+| **GET** | `/api/analytics/most-used-items` | Top items by total units withdrawn | `?dateRange=all&limit=5` | `{ success, data: [{ itemId, name, location, currentStock, totalQuantityUsed }] }` |
+| **GET** | `/api/analytics/most-used-projects` | Top projects by total units consumed | `?dateRange=all&limit=5` | `{ success, data: [{ projectId, name, status, totalUnitsConsumed }] }` |
+| **GET** | `/api/analytics/low-stock` | Active low-stock and out-of-stock item lists | None | `{ success, data: { lowStock, outOfStock } }` |
+| **GET** | `/api/analytics/movement` | Timeline of restocks vs withdrawals over time | `?dateRange=all` | `{ success, data: [{ date, stockIn, stockOut, netChange }] }` |
+
+### 3. Analytics Page (`/analytics`)
+* **Primary Navigation**: Header updated to `Inventory`, `Projects`, `History`, `Analytics` (`/analytics`). `Inventory` remains default landing page.
+* **Date Range Selector**: Controls movement stats, top items, project consumption, and charts (`Today`, `Last 7 days`, `Last 30 days`, `Last 90 days`, `All time`).
+* **Current Inventory Cards**: `Total Items` (distinct), `Total Units` (sum of available stock), `Low Stock`, `Out of Stock`.
+* **Stock Movement Cards**: `Stock In` (+X), `Stock Out` (-Y), `Net Change` (+Z).
+* **Interactive Visualizations**: SVG progress bars and chart breakdowns for top items, top projects, and daily stock movement.
+* **Item & Project Direct Links**: Most-used items and low-stock cards link directly to existing item details (`/inventory/:id`) and project details (`/projects/:id`).
+
 
 
 

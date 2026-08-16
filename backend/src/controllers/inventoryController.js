@@ -43,7 +43,7 @@ const validateLocationCode = (location) => {
 // @access  Public
 exports.createInventoryItem = async (req, res) => {
   try {
-    const { name, image, quantity, location } = req.body;
+    const { name, image, quantity, location, lowStockThreshold } = req.body;
     
     // Explicit Validation Check before Mongoose schema to return clear errors
     if (!name || String(name).trim().length === 0) {
@@ -62,6 +62,18 @@ exports.createInventoryItem = async (req, res) => {
         });
       }
     }
+
+    let thresholdVal = 5;
+    if (lowStockThreshold !== undefined) {
+      const t = Number(lowStockThreshold);
+      if (isNaN(t) || !Number.isInteger(t) || t < 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Low stock threshold must be a non-negative integer'
+        });
+      }
+      thresholdVal = t;
+    }
     
     const locationCheck = validateLocationCode(location);
     if (!locationCheck.isValid) {
@@ -75,7 +87,8 @@ exports.createInventoryItem = async (req, res) => {
       name,
       image,
       quantity,
-      location
+      location,
+      lowStockThreshold: thresholdVal
     });
     
     await item.save();
@@ -159,7 +172,7 @@ exports.getInventoryItemById = async (req, res) => {
 exports.updateInventoryItem = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, image, quantity, location } = req.body;
+    const { name, image, quantity, location, lowStockThreshold } = req.body;
     
     if (!isValidId(id)) {
       return res.status(400).json({
@@ -182,6 +195,16 @@ exports.updateInventoryItem = async (req, res) => {
         return res.status(400).json({
           success: false,
           message: 'Quantity must be a positive integer'
+        });
+      }
+    }
+
+    if (lowStockThreshold !== undefined) {
+      const t = Number(lowStockThreshold);
+      if (isNaN(t) || !Number.isInteger(t) || t < 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Low stock threshold must be a non-negative integer'
         });
       }
     }
@@ -210,6 +233,7 @@ exports.updateInventoryItem = async (req, res) => {
     if (image !== undefined) item.image = image;
     if (quantity !== undefined) item.quantity = quantity;
     if (location !== undefined) item.location = location;
+    if (lowStockThreshold !== undefined) item.lowStockThreshold = Number(lowStockThreshold);
     
     await item.save();
     

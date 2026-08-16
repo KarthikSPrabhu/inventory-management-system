@@ -36,6 +36,10 @@ app.use('/api/projects', projectRoutes);
 const stockInRoutes = require('./routes/stockInRoutes');
 app.use('/api/stock-in', stockInRoutes);
 
+// Register Analytics REST routes
+const analyticsRoutes = require('./routes/analyticsRoutes');
+app.use('/api/analytics', analyticsRoutes);
+
 // Request Logger (simple middleware for beginner readability)
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
