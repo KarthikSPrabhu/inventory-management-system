@@ -45,19 +45,20 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
     }
   };
 
-  // Determine stock quantity indicator styling
+  // Determine stock quantity indicator styling using lowStockThreshold
+  const threshold = item.lowStockThreshold !== undefined ? item.lowStockThreshold : 5;
   let stockBadgeClass = '';
-  let stockText = '';
+  let stockStatusLabel = '';
   
-  if (quantity > 5) {
-    stockBadgeClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-    stockText = `${quantity} available`;
+  if (quantity > threshold) {
+    stockBadgeClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25';
+    stockStatusLabel = 'IN STOCK';
   } else if (quantity > 0) {
-    stockBadgeClass = 'bg-amber-500/10 text-amber-400 border-amber-500/20 animate-pulse';
-    stockText = `${quantity} available (Low stock)`;
+    stockBadgeClass = 'bg-amber-500/10 text-amber-400 border-amber-500/25';
+    stockStatusLabel = 'LOW STOCK';
   } else {
-    stockBadgeClass = 'bg-rose-500/10 text-rose-400 border-rose-500/20';
-    stockText = '0 available (Out of stock)';
+    stockBadgeClass = 'bg-rose-500/10 text-rose-400 border-rose-500/25';
+    stockStatusLabel = 'OUT OF STOCK';
   }
 
   return (
@@ -106,11 +107,11 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
           </h4>
           
           <div className="flex items-center gap-2">
-            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-semibold border ${stockBadgeClass}`}>
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-extrabold border ${stockBadgeClass}`}>
               <span className={`w-1.5 h-1.5 rounded-full ${
-                quantity > 5 ? 'bg-emerald-400' : quantity > 0 ? 'bg-amber-400' : 'bg-rose-500'
+                quantity > threshold ? 'bg-emerald-400' : quantity > 0 ? 'bg-amber-400' : 'bg-rose-500'
               }`}></span>
-              {stockText}
+              <span>{quantity} available &bull; {stockStatusLabel}</span>
             </span>
           </div>
         </div>

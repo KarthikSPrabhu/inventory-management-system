@@ -346,9 +346,17 @@ function Inventory() {
                 <h4 className="text-sm font-bold text-white">
                   {activeBoxDrawer > 0 ? `Box ${activeBoxDrawer} is currently empty` : `No items found matching "${searchQuery}"`}
                 </h4>
-                <p className="text-xs text-slate-500 max-w-xs">
+                <p className="text-xs text-slate-400 max-w-xs">
                   {activeBoxDrawer > 0 ? 'Click the opened drawer again on the physical rack to view all inventory.' : 'Try searching for an item name, location code, or storage section.'}
                 </p>
+                {searchQuery && (
+                  <button
+                    onClick={() => handleSearchChange('')}
+                    className="bg-indigo-600/15 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 text-xs font-bold px-4 py-2 rounded-xl transition-all cursor-pointer mt-1"
+                  >
+                    Clear Search
+                  </button>
+                )}
               </div>
             ) : (
               /* Scrollable Cards Grid for Inventory Items */
