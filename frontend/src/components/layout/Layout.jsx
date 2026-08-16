@@ -21,10 +21,11 @@ function Layout({ children }) {
     return () => clearInterval(interval);
   }, []);
 
-  const isInventoryActive = (location.pathname.startsWith('/inventory') && location.pathname !== '/history' && location.pathname !== '/analytics') || location.pathname === '/';
+  const isInventoryActive = (location.pathname.startsWith('/inventory') && location.pathname !== '/history' && location.pathname !== '/analytics' && location.pathname !== '/buy-list') || location.pathname === '/';
   const isProjectsActive = location.pathname.startsWith('/projects');
   const isHistoryActive = location.pathname.startsWith('/history');
   const isAnalyticsActive = location.pathname.startsWith('/analytics');
+  const isBuyListActive = location.pathname.startsWith('/buy-list');
 
   // If on login page, don't show full header layout
   if (location.pathname === '/login') {
@@ -109,6 +110,20 @@ function Layout({ children }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 012-2h2a2 2 0 012 2v6m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
               <span>Analytics</span>
+            </Link>
+
+            <Link
+              to="/buy-list"
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all ${
+                isBuyListActive
+                  ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-transparent'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+              <span>Buy List</span>
             </Link>
           </nav>
         </div>

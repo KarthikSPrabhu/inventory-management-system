@@ -11,6 +11,7 @@ import Projects from './pages/Projects';
 import ProjectDetails from './pages/ProjectDetails';
 import History from './pages/History';
 import Analytics from './pages/Analytics';
+import BuyListPage from './pages/BuyListPage';
 
 function App() {
   return (
@@ -75,6 +76,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Analytics />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/buy-list"
+              element={
+                <ProtectedRoute>
+                  <BuyListPage />
                 </ProtectedRoute>
               }
             />

@@ -572,10 +572,31 @@ We performed comprehensive UI/UX refinements to elevate the application into a f
   * **`LOW STOCK`** (`0 < quantity <= lowStockThreshold`): Amber badge (`bg-amber-500/10 text-amber-400 border-amber-500/25`).
   * **`OUT OF STOCK`** (`quantity === 0`): Rose badge (`bg-rose-500/10 text-rose-400 border-rose-500/25`).
 
-### 4. Search & Empty States
-* Prominent search bar with text highlighting on catalog cards.
-* Clean empty states with `Clear Search` actions when no search matches exist.
-* SVG placeholder fallbacks for items without uploaded photos.
+---
+
+## Phase 15.1: Inventory Bug Fixes, Image Upload & Buy List
+
+We resolved UI layout alignment issues, corrected physical storage drawer image mapping, implemented laptop file uploads, and introduced a persistent MongoDB Buy List.
+
+### 1. `+ STOCK` Button UI Alignment Fix
+* Replaced loose flex-wrap card button layout in [`InventoryCard.jsx`](file:///d:/Inventory-Management-System/frontend/src/components/inventory/InventoryCard.jsx) with a fixed `grid grid-cols-3 gap-1.5` layout.
+* Set explicit height (`h-9`), text truncation, and padding to ensure `TAKE`, `+ STOCK`, and `Details` action buttons are 100% visible, unclipped, and perfectly aligned across all screen sizes.
+
+### 2. Physical Storage Box Mapping Correction
+* **Root Cause Fix**: In-depth PNG pixel variance analysis revealed that asset filenames `4-removebg-preview.png` (depicting physical Box 6 open) and `6-removebg-preview.png` (depicting physical Box 4 open) were inverted.
+* Updated `storageImages` in [`storageConfig.js`](file:///d:/Inventory-Management-System/frontend/src/config/storageConfig.js) to map Box 4 $\rightarrow$ `"/img/6-removebg-preview.png"` and Box 6 $\rightarrow$ `"/img/4-removebg-preview.png"`. Clicking physical Boxes 1 through 6 now displays the exact corresponding physical drawer.
+
+### 3. Laptop Native Image Upload
+* Replaced URL input field in [`AddInventory.jsx`](file:///d:/Inventory-Management-System/frontend/src/pages/AddInventory.jsx) with a native OS file picker (`[ Choose Image ]`).
+* Validates `.jpg`, `.jpeg`, `.png`, `.webp` file formats under 5MB.
+* Converts uploaded images to Base64 data strings stored directly in MongoDB Atlas. Images persist across browser refreshes, server restarts, and cloud deployments while existing image URLs continue to display seamlessly.
+
+### 4. Persistent Buy List Feature
+* **Navigation**: Added `Buy List` to header navigation (`Inventory`, `Projects`, `History`, `Analytics`, `Buy List`).
+* **Database Model**: Created `BuyListItem` schema in [`backend/src/models/BuyListItem.js`](file:///d:/Inventory-Management-System/backend/src/models/BuyListItem.js) (`name`, `quantityNeeded`, `note`, `status` enum `['NEEDED', 'BOUGHT']`).
+* **REST Endpoints**: Implemented `/api/buy-list` CRUD endpoints in [`backend/src/controllers/buyListController.js`](file:///d:/Inventory-Management-System/backend/src/controllers/buyListController.js).
+* **Interactive UI**: Built [`BuyListPage.jsx`](file:///d:/Inventory-Management-System/frontend/src/pages/BuyListPage.jsx) and [`AddBuyListModal.jsx`](file:///d:/Inventory-Management-System/frontend/src/components/buylist/AddBuyListModal.jsx) featuring search filters, status toggle (`[ ✓ Mark as Bought ]` / `[ Mark as Needed ]`), delete confirmation modals, and real-time inventory stock lookups (`Inventory stock: X units available`).
+
 
 
 

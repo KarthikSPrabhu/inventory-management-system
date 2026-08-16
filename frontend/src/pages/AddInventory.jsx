@@ -273,49 +273,69 @@ function AddInventory() {
           </div>
         </div>
 
-        {/* Optional Image URL */}
+        {/* Product Photo (Laptop File Picker + Base64 Preview) */}
         <div className="pt-2 border-t border-slate-800/60 space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-350 uppercase tracking-wide">Image URL (Optional)</label>
-            <input
-              type="url"
-              value={image}
-              onChange={(e) => setImage(e.target.value)}
-              disabled={loading}
-              placeholder="e.g. https://example.com/item.jpg"
-              className="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-650 focus:outline-none focus:border-indigo-500 transition-colors"
-            />
+            <label className="text-xs font-bold text-slate-350 uppercase tracking-wide">Product Photo (Optional)</label>
+            
+            <div className="flex items-center gap-3">
+              <label className="bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 font-bold text-xs px-4 py-2.5 rounded-xl cursor-pointer transition-colors inline-flex items-center gap-2">
+                <svg className="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 00-2 2z" />
+                </svg>
+                <span>{image ? 'Change Image' : 'Choose Image'}</span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/jpg"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+                    if (!validTypes.includes(file.type.toLowerCase())) {
+                      setApiError('Please select a valid image file (.jpg, .jpeg, .png, .webp).');
+                      return;
+                    }
+                    if (file.size > 5 * 1024 * 1024) {
+                      setApiError('Image file size must be under 5MB.');
+                      return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = (evt) => setImage(evt.target.result);
+                    reader.readAsDataURL(file);
+                  }}
+                  disabled={loading}
+                  className="hidden"
+                />
+              </label>
+
+              {image ? (
+                <button
+                  type="button"
+                  onClick={() => setImage('')}
+                  className="text-xs text-rose-400 hover:text-rose-300 font-semibold cursor-pointer"
+                >
+                  Remove Image
+                </button>
+              ) : null}
+            </div>
           </div>
 
           {/* Image Preview Window */}
-          <div className="bg-slate-950/50 border border-slate-850 rounded-xl p-4 flex items-center gap-4">
-            <div className="h-16 w-16 bg-slate-900 border border-slate-800 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
-              {image.trim() ? (
+          {image ? (
+            <div className="bg-slate-950/50 border border-slate-850 rounded-xl p-4 flex items-center gap-4 animate-fadeIn">
+              <div className="h-20 w-20 bg-slate-900 border border-slate-800 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
                 <img
-                  src={image.trim()}
+                  src={image}
                   alt="Item preview"
-                  onError={(e) => {
-                    // Fallback on broken image load
-                    e.target.style.display = 'none';
-                    e.target.nextSibling.style.display = 'block';
-                  }}
                   className="h-full w-full object-cover"
                 />
-              ) : null}
-              <div
-                style={{ display: image.trim() ? 'none' : 'block' }}
-                className="text-slate-600"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 00-2 2z" />
-                </svg>
+              </div>
+              <div>
+                <h5 className="text-xs font-bold text-white">Image Preview</h5>
+                <p className="text-[10px] text-slate-400 mt-0.5">Selected laptop photo ready for inventory catalog.</p>
               </div>
             </div>
-            <div>
-              <h5 className="text-xs font-bold text-slate-300">Live Preview</h5>
-              <p className="text-[10px] text-slate-500 mt-0.5">Supply an image URL to load the product preview window.</p>
-            </div>
-          </div>
+          ) : null}
         </div>
 
         {/* Submit */}

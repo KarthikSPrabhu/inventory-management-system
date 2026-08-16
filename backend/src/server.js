@@ -101,6 +101,10 @@ app.use('/api/stock-in', stockInRoutes);
 const analyticsRoutes = require('./routes/analyticsRoutes');
 app.use('/api/analytics', analyticsRoutes);
 
+// Register Buy List REST routes
+const buyListRoutes = require('./routes/buyListRoutes');
+app.use('/api/buy-list', buyListRoutes);
+
 // Simple backend health-check endpoint
 app.get('/api/health', (req, res) => {
   res.status(200).json({

@@ -4,14 +4,12 @@ import { storageImages } from '../../config/storageConfig';
 /**
  * StorageVisualizer Component
  * 
- * Displays the pre-generated transparent PNG images of the physical storage rack.
+ * Displays the pre-generated transparent PNG images of the 6-drawer physical storage rack.
  * Clicking a box opens it; clicking an opened box again closes it.
  * 
- * Accepts:
- *   selectedDrawer - number (0 = all closed, 1..6 = specific drawer open)
- *   location - location object { section, storageUnit, box, code }
- *   onSelectDrawer - callback when a physical box (1-6) is clicked
- *   onReset - callback to reset/close box
+ * Overlay buttons are aspect-ratio locked (375:666) to match the physical rack frame:
+ * - Top-to-Bottom: Box 1 (top) to Box 6 (bottom)
+ * - Exact bounds: Y [4.8%..94.4%], X [21.3%..77.9%]
  */
 function StorageVisualizer({ selectedDrawer = 0, location = null, onSelectDrawer, onReset }) {
   // Preload images to ensure instant, unnoticeable image swaps
@@ -26,7 +24,6 @@ function StorageVisualizer({ selectedDrawer = 0, location = null, onSelectDrawer
 
   const handleBoxClick = (boxNum) => {
     if (selectedDrawer === boxNum) {
-      // Clicking the already opened box closes it!
       if (onReset) onReset();
     } else {
       if (onSelectDrawer) onSelectDrawer(boxNum);
@@ -47,26 +44,36 @@ function StorageVisualizer({ selectedDrawer = 0, location = null, onSelectDrawer
         </div>
       </div>
 
-      {/* Main Hero Container - Larger Rack Size */}
+      {/* Main Hero Container */}
       <div className="relative w-full max-w-xl min-h-[480px] sm:min-h-[540px] bg-slate-950/70 border border-slate-800/80 rounded-2xl p-4 flex flex-col items-center justify-center overflow-hidden shadow-2xl backdrop-blur-sm">
         
-        {/* Storage Rack Image Container */}
-        <div className="relative w-full h-[450px] sm:h-[500px] flex items-center justify-center">
+        {/* Storage Rack Image Wrapper — Locked to Rack Aspect Ratio 375:666 */}
+        <div className="relative h-[450px] sm:h-[500px] aspect-[375/666] flex items-center justify-center">
           <img
             src={targetImage}
             alt="Physical Storage Rack"
-            className="max-h-full max-w-full object-contain filter drop-shadow-[0_15px_30px_rgba(0,0,0,0.8)]"
+            className="w-full h-full object-contain filter drop-shadow-[0_15px_30px_rgba(0,0,0,0.8)]"
           />
 
-          {/* 100% Transparent Interactive Click Targets for Box 1 to 6 */}
-          <div className="absolute inset-y-3 inset-x-8 flex flex-col justify-between py-2">
+          {/* 100% Precise Overlay Click Targets aligned to physical rack frame [Y: 4.8%..94.4%, X: 21.3%..77.9%] */}
+          <div 
+            className="absolute flex flex-col justify-between"
+            style={{
+              top: '4.8%',
+              bottom: '5.6%',
+              left: '21.3%',
+              width: '56.6%'
+            }}
+          >
             {boxes.map((boxNum) => (
               <button
                 key={boxNum}
                 onClick={() => handleBoxClick(boxNum)}
                 title={`Box ${boxNum} - Click to ${selectedDrawer === boxNum ? 'close' : 'open'}`}
-                className="w-full flex-1 bg-transparent border-none outline-none cursor-pointer focus:outline-none my-0.5"
-              />
+                className="w-full flex-1 bg-transparent border-none outline-none focus:outline-none focus:ring-0 cursor-pointer my-0.5"
+              >
+                <span className="sr-only">Box {boxNum}</span>
+              </button>
             ))}
           </div>
         </div>

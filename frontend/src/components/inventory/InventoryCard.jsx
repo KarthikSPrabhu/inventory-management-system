@@ -160,7 +160,7 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
         </div>
 
         {/* Action Buttons Row: TAKE ITEM, ADD STOCK & DETAILS */}
-        <div className="pt-1 flex flex-wrap items-center gap-2">
+        <div className="pt-1 grid grid-cols-3 gap-1.5 w-full">
           {onTakeItem ? (
             <button
               onClick={(e) => {
@@ -169,18 +169,21 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
                 if (quantity > 0) onTakeItem(item);
               }}
               disabled={quantity === 0}
-              className={`flex-1 font-extrabold text-xs px-2.5 py-2 rounded-xl transition-all flex items-center justify-center gap-1 ${
+              title="Take item for a project"
+              className={`h-9 font-extrabold text-[11px] px-1.5 rounded-xl transition-all flex items-center justify-center gap-1 min-w-0 ${
                 quantity > 0
                   ? 'bg-purple-600/15 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/30 cursor-pointer shadow-sm'
                   : 'bg-slate-950 text-slate-600 border border-slate-850 cursor-not-allowed opacity-50'
               }`}
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M20 12H4m8-8l-8 8 8 8" />
               </svg>
-              <span>TAKE</span>
+              <span className="truncate">TAKE</span>
             </button>
-          ) : null}
+          ) : (
+            <div />
+          )}
 
           {onAddStock ? (
             <button
@@ -189,22 +192,26 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
                 e.stopPropagation();
                 onAddStock(item);
               }}
-              className="flex-1 bg-emerald-600/15 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/30 font-extrabold text-xs px-2.5 py-2 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer shadow-sm"
+              title="Add stock to inventory"
+              className="h-9 bg-emerald-600/15 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/30 font-extrabold text-[11px] px-1.5 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer shadow-sm min-w-0"
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
               </svg>
-              <span>+ STOCK</span>
+              <span className="truncate">+ STOCK</span>
             </button>
-          ) : null}
+          ) : (
+            <div />
+          )}
 
           <Link
             to={`/inventory/${_id}`}
             onClick={(e) => e.stopPropagation()}
-            className="flex-1 bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-350 hover:text-white font-bold text-xs px-2.5 py-2 rounded-xl transition-all flex items-center justify-center gap-1 text-center"
+            title="View item details"
+            className="h-9 bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white font-bold text-[11px] px-1.5 rounded-xl transition-all flex items-center justify-center gap-1 text-center min-w-0"
           >
-            <span>Details</span>
-            <svg className="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <span className="truncate">Details</span>
+            <svg className="w-3 h-3 text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
             </svg>
           </Link>
