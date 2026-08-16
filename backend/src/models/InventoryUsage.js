@@ -36,4 +36,9 @@ const InventoryUsageSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Database indexes for audit & analytics performance
+InventoryUsageSchema.index({ item: 1, createdAt: -1 });
+InventoryUsageSchema.index({ project: 1, createdAt: -1 });
+InventoryUsageSchema.index({ createdAt: -1 });
+
 module.exports = mongoose.model('InventoryUsage', InventoryUsageSchema);

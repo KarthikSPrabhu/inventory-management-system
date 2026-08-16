@@ -7,9 +7,9 @@ const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 // Allowed predefined reasons
 const PREDEFINED_REASONS = ['Purchased', 'Returned', 'Found', 'Transferred In', 'Correction', 'Other'];
 
-// @desc    Record inventory stock-in / restocking & update item stock quantity
+// @desc    Record inventory stock-in / restocking & update item stock quantity atomically
 // @route   POST /api/stock-in
-// @access  Public
+// @access  Private (requireAuth, requireRole('admin'))
 exports.createStockIn = async (req, res) => {
   try {
     const { itemId, quantity, reason, notes } = req.body;
@@ -22,7 +22,7 @@ exports.createStockIn = async (req, res) => {
       });
     }
 
-    // 2. Validate Quantity
+    // 2. Validate Quantity (positive integer)
     const qty = Number(quantity);
     if (isNaN(qty) || !Number.isInteger(qty) || qty < 1) {
       return res.status(400).json({
@@ -61,36 +61,57 @@ exports.createStockIn = async (req, res) => {
       });
     }
 
-    // 5. Fetch item from MongoDB Atlas (Stale Data Protection: Real-time quantity check)
-    const item = await InventoryItem.findById(itemId);
-    if (!item) {
-      return res.status(404).json({
-        success: false,
-        message: 'Inventory item not found'
-      });
+    // 5. Attempt MongoDB session transaction for atomic stock addition
+    let session = null;
+    try {
+      session = await mongoose.startSession();
+      session.startTransaction();
+    } catch {
+      session = null;
     }
 
-    // 6. Increase item quantity in MongoDB Atlas & create stock-in record
-    item.quantity += qty;
-    await item.save();
+    try {
+      const itemQuery = InventoryItem.findById(itemId);
+      if (session) itemQuery.session(session);
+      const item = await itemQuery;
 
-    const stockIn = new InventoryStockIn({
-      item: item._id,
-      quantity: qty,
-      reason: finalReason,
-      notes: noteText
-    });
-
-    await stockIn.save();
-
-    res.status(201).json({
-      success: true,
-      message: `${qty} ${item.name} unit(s) added to inventory.`,
-      data: {
-        stockIn,
-        item
+      if (!item) {
+        if (session) await session.abortTransaction();
+        return res.status(404).json({
+          success: false,
+          message: 'Inventory item not found'
+        });
       }
-    });
+
+      // Increase item quantity in MongoDB Atlas
+      item.quantity += qty;
+      await item.save(session ? { session } : undefined);
+
+      const stockIn = new InventoryStockIn({
+        item: item._id,
+        quantity: qty,
+        reason: finalReason,
+        notes: noteText
+      });
+      await stockIn.save(session ? { session } : undefined);
+
+      if (session) await session.commitTransaction();
+
+      return res.status(201).json({
+        success: true,
+        message: `${qty} ${item.name} unit(s) added to inventory.`,
+        data: {
+          stockIn,
+          item
+        }
+      });
+    } catch (dbErr) {
+      if (session) await session.abortTransaction();
+      throw dbErr;
+    } finally {
+      if (session) session.endSession();
+    }
+
   } catch (error) {
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(err => err.message);

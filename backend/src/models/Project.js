@@ -29,4 +29,7 @@ const ProjectSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Database indexes for status queries
+ProjectSchema.index({ status: 1 });
+
 module.exports = mongoose.model('Project', ProjectSchema);

@@ -88,4 +88,9 @@ const InventoryItemSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Database indexes for performance
+InventoryItemSchema.index({ name: 1 });
+InventoryItemSchema.index({ 'location.code': 1 });
+InventoryItemSchema.index({ quantity: 1 });
+
 module.exports = mongoose.model('InventoryItem', InventoryItemSchema);

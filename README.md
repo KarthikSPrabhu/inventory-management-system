@@ -523,11 +523,40 @@ Default initial accounts auto-bootstrap on server startup if the `User` collecti
 * **Admin**: `admin@inventory.com` | Password: `Admin@12345` (Role: `admin`)
 * **Member**: `member@inventory.com` | Password: `Member@12345` (Role: `member`)
 
-### 5. Frontend Auth State & UI Guarding
-* **Auth Context**: [`frontend/src/context/AuthContext.jsx`](file:///D:/Inventory-Management-System/frontend/src/context/AuthContext.jsx) persists JWT token in `localStorage` and injects `Authorization: Bearer <token>` on API requests.
-* **Protected Routes**: [`frontend/src/components/auth/ProtectedRoute.jsx`](file:///D:/Inventory-Management-System/frontend/src/components/auth/ProtectedRoute.jsx) guards `/inventory`, `/projects`, `/history`, and `/analytics`.
-* **Login Page**: [`frontend/src/pages/LoginPage.jsx`](file:///D:/Inventory-Management-System/frontend/src/pages/LoginPage.jsx) provides a dark glassmorphic login interface.
-* **Header Profile**: Displays current user name, role badge (`👑 ADMIN` / `👤 MEMBER`), and `Logout` button.
+---
+
+## Phase 14: Production Hardening, Validation & Data Integrity
+
+We performed end-to-end production hardening, input validation, database indexing, rate limiting, and security enforcement across both the Express backend and React frontend.
+
+### 1. Security & Middleware Configuration
+* **Security Headers (`helmet`)**: Enforces standard security headers in [`backend/src/server.js`](file:///D:/Inventory-Management-System/backend/src/server.js).
+* **CORS Hardening**: Explicitly validates `CLIENT_URL` environment configuration (`http://localhost:5173`).
+* **Rate Limiting (`express-rate-limit`)**:
+  * Auth Limiter: Restricted to max 15 requests per 15 minutes on `/api/auth/login`.
+  * API Limiter: Restricted to max 300 requests per 15 minutes across all `/api/` endpoints.
+* **Request Body Limits**: Configured `express.json({ limit: '10mb' })` and `express.urlencoded({ limit: '10mb' })`.
+
+### 2. Error & Route Handling
+* **404 API Route Handler**: Unknown `/api/*` requests return clean JSON `{ success: false, message: "API route not found." }`.
+* **Centralized 500 Error Handler**: Suppresses stack traces and sensitive error details in production mode (`NODE_ENV=production`).
+* **Graceful Shutdown**: Added `SIGINT` and `SIGTERM` handlers to cleanly close Mongoose database connections and HTTP server listeners.
+
+### 3. Server-Side Validation & Stock Protection
+* **Real-Time Stock Checks**: `createUsage` verifies `item.quantity >= requestedQty`. Requests exceeding available stock are rejected with `400` and `{ success: false, message: "Insufficient inventory. Only X units are available." }`.
+* **Mongoose Session Transactions**: Wrapped stock increases (`createStockIn`) and stock decreases (`createUsage`) in Mongoose session transactions for atomic quantity updates and activity log creation.
+* **Input Bounds Checking**: Server-side bounds checks on quantities (positive integers), notes (max 500 characters), item names (1-100 characters), and location codes.
+
+### 4. Database Performance & Data Integrity
+* **Indexes**: Added MongoDB indexes to frequently queried fields:
+  * `InventoryItem`: `name`, `location.code`, `quantity`
+  * `Project`: `status`
+  * `InventoryUsage`: `item`, `project`, `createdAt`
+  * `InventoryStockIn`: `item`, `createdAt`
+* **Delete Safeguards & Historical Immutability**:
+  * Prevents deleting items or projects that have associated historical activity logs.
+  * Recommends setting stock to 0 or setting project status to `archived` to preserve historical audit trail integrity.
+
 
 
 

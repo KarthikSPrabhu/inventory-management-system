@@ -373,8 +373,14 @@ exports.deleteProject = async (req, res) => {
       });
     }
 
-    // Clean up associated InventoryUsage records
-    await InventoryUsage.deleteMany({ project: id });
+    // Protect historical integrity: check if project has associated usage records
+    const hasUsage = await InventoryUsage.exists({ project: id });
+    if (hasUsage) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot delete project "${project.name}" because it has associated inventory usage records. Set its status to Archived instead to preserve data integrity.`
+      });
+    }
 
     // Delete project
     await project.deleteOne();

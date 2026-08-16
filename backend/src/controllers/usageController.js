@@ -8,7 +8,7 @@ const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 
 // @desc    Record inventory item withdrawal / usage linked to a Project
 // @route   POST /api/usage
-// @access  Public
+// @access  Private (requireAuth)
 exports.createUsage = async (req, res) => {
   try {
     const { itemId, projectId, quantity, notes } = req.body;
@@ -56,46 +56,68 @@ exports.createUsage = async (req, res) => {
       });
     }
 
-    // 5. Fetch current item from database (verifying real-time stock)
-    const item = await InventoryItem.findById(itemId);
-    if (!item) {
-      return res.status(404).json({
-        success: false,
-        message: 'Inventory item not found'
-      });
+    // 5. Attempt MongoDB session transaction for atomic stock reduction
+    let session = null;
+    try {
+      session = await mongoose.startSession();
+      session.startTransaction();
+    } catch {
+      session = null;
     }
 
-    // 6. Verify sufficient quantity in MongoDB Atlas
-    if (item.quantity < qty) {
-      return res.status(400).json({
-        success: false,
-        message: `Insufficient inventory. Only ${item.quantity} units are available.`
-      });
-    }
+    try {
+      const itemQuery = InventoryItem.findById(itemId);
+      if (session) itemQuery.session(session);
+      const item = await itemQuery;
 
-    // 7. Server-side quantity reduction & Usage record creation
-    item.quantity -= qty;
-    await item.save();
-
-    const usage = new InventoryUsage({
-      item: item._id,
-      project: project._id,
-      quantity: qty,
-      location: item.location.code,
-      notes: noteText
-    });
-
-    await usage.save();
-
-    res.status(201).json({
-      success: true,
-      message: `${qty} ${item.name} unit(s) taken for ${project.name}.`,
-      data: {
-        usage,
-        item,
-        project
+      if (!item) {
+        if (session) await session.abortTransaction();
+        return res.status(404).json({
+          success: false,
+          message: 'Inventory item not found'
+        });
       }
-    });
+
+      // 6. Verify sufficient quantity in MongoDB Atlas
+      if (item.quantity < qty) {
+        if (session) await session.abortTransaction();
+        return res.status(400).json({
+          success: false,
+          message: `Insufficient inventory. Only ${item.quantity} units are available.`
+        });
+      }
+
+      // 7. Server-side quantity reduction & Usage record creation
+      item.quantity -= qty;
+      await item.save(session ? { session } : undefined);
+
+      const usage = new InventoryUsage({
+        item: item._id,
+        project: project._id,
+        quantity: qty,
+        location: item.location.code,
+        notes: noteText
+      });
+
+      await usage.save(session ? { session } : undefined);
+
+      if (session) await session.commitTransaction();
+
+      return res.status(201).json({
+        success: true,
+        message: `${qty} ${item.name} unit(s) taken for ${project.name}.`,
+        data: {
+          usage,
+          item,
+          project
+        }
+      });
+    } catch (dbErr) {
+      if (session) await session.abortTransaction();
+      throw dbErr;
+    } finally {
+      if (session) session.endSession();
+    }
   } catch (error) {
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(err => err.message);

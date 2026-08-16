@@ -1,4 +1,6 @@
 const InventoryItem = require('../models/InventoryItem');
+const InventoryUsage = require('../models/InventoryUsage');
+const InventoryStockIn = require('../models/InventoryStockIn');
 const mongoose = require('mongoose');
 
 // Helper to validate ObjectId
@@ -277,6 +279,17 @@ exports.deleteInventoryItem = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Inventory item not found'
+      });
+    }
+
+    // Protect historical integrity: do not delete item if transaction history exists
+    const hasUsage = await InventoryUsage.exists({ item: id });
+    const hasStockIn = await InventoryStockIn.exists({ item: id });
+
+    if (hasUsage || hasStockIn) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot delete "${item.name}" because it has historical usage or restocking activity records. Set quantity to 0 instead to preserve data integrity.`
       });
     }
     

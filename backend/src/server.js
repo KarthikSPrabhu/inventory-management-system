@@ -1,24 +1,77 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const path = require('path');
+const mongoose = require('mongoose');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const connectDB = require('./config/db');
 
 // Initialize Express App
 const app = express();
 
-// Connect to MongoDB
+// Connect to MongoDB Atlas
 connectDB();
 
-// Middleware Configuration
+// 1. Security Headers (Helmet)
+app.use(helmet({
+  contentSecurityPolicy: false, // Prevents breaking inline image/data assets
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+
+// 2. CORS Configuration
+const allowedOrigin = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173', // standard Vite port
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, postman) or matching allowed client URL
+    if (!origin || origin === allowedOrigin || allowedOrigin === '*') {
+      callback(null, true);
+    } else {
+      callback(new Error('Blocked by CORS policy'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   credentials: true
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// 3. Request Body Parsing Limits (10MB limit protects memory while enabling image uploads)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+// 4. Rate Limiting Middleware
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 15, // Max 15 login attempts per window
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many login attempts. Please try again later.'
+  }
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 300, // Max 300 requests per 15 mins for general API
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many requests. Please try again later.'
+  }
+});
+
+// Apply rate limiting
+app.use('/api/auth/login', authLimiter);
+app.use('/api/', apiLimiter);
+
+// Request Logger (Development Diagnostics)
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  }
+  next();
+});
 
 // Register Authentication REST routes
 const authRoutes = require('./routes/authRoutes');
@@ -48,26 +101,40 @@ app.use('/api/stock-in', stockInRoutes);
 const analyticsRoutes = require('./routes/analyticsRoutes');
 app.use('/api/analytics', analyticsRoutes);
 
-// Request Logger (simple middleware for beginner readability)
-app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-  next();
-});
-
 // Simple backend health-check endpoint
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     success: true,
-    message: "Inventory API is running"
+    message: 'Inventory API is running'
   });
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({
+// 5. 404 API Route Handler
+app.use('/api/*', (req, res) => {
+  res.status(404).json({
     success: false,
-    message: "An internal server error occurred"
+    message: 'API route not found.'
+  });
+});
+
+// 6. Centralized Error Handling Middleware
+app.use((err, req, res, next) => {
+  if (process.env.NODE_ENV !== 'production') {
+    console.error('Server Error:', err);
+  }
+  
+  if (err.message === 'Blocked by CORS policy') {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied by CORS policy.'
+    });
+  }
+
+  res.status(err.status || 500).json({
+    success: false,
+    message: process.env.NODE_ENV === 'production' 
+      ? 'An internal server error occurred' 
+      : err.message || 'An internal server error occurred'
   });
 });
 
@@ -75,9 +142,28 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 // Start Server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+const server = app.listen(PORT, () => {
+  console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/api/health`);
 });
+
+// Graceful Server Shutdown Handling (SIGINT & SIGTERM)
+const gracefulShutdown = (signal) => {
+  console.log(`\nReceived ${signal}. Shutting down gracefully...`);
+  server.close(async () => {
+    console.log('HTTP server closed.');
+    try {
+      await mongoose.connection.close();
+      console.log('MongoDB connection closed.');
+      process.exit(0);
+    } catch (err) {
+      console.error('Error closing MongoDB connection:', err);
+      process.exit(1);
+    }
+  });
+};
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 module.exports = app;

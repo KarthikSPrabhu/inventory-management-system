@@ -30,4 +30,8 @@ const InventoryStockInSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Database indexes for audit & analytics performance
+InventoryStockInSchema.index({ item: 1, createdAt: -1 });
+InventoryStockInSchema.index({ createdAt: -1 });
+
 module.exports = mongoose.model('InventoryStockIn', InventoryStockInSchema);
