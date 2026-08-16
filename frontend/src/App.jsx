@@ -92,7 +92,7 @@ function App() {
           </Routes>
         </Layout>
       </Router>
-    </AuthProvider>
+      </AuthProvider>
   );
 }
 

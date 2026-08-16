@@ -103,34 +103,34 @@ function History() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto animate-fadeIn pb-12">
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-slate-200 p-6 rounded-2xl shadow-lg">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></span>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400">Audit & Activity Log</span>
+            <span className="h-2 w-2 rounded-full bg-indigo-50 animate-pulse"></span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600">Audit & Activity Log</span>
           </div>
-          <h2 className="text-2xl font-black text-white tracking-tight">RECENT ACTIVITY</h2>
-          <p className="text-xs text-slate-400">
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight">RECENT ACTIVITY</h2>
+          <p className="text-xs text-slate-500">
             Track all stock additions, withdrawals, locations, project assignments, and notes.
           </p>
         </div>
 
         {/* Quick Stats pill */}
-        <div className="bg-slate-950/80 border border-slate-850 px-4 py-2.5 rounded-xl shrink-0 flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-indigo-600/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+        <div className="bg-white border border-slate-200 px-4 py-2.5 rounded-xl shrink-0 flex items-center gap-3">
+          <div className="h-8 w-8 rounded-lg bg-indigo-100 border border-indigo-300 flex items-center justify-center text-indigo-600">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
           </div>
           <div>
             <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Total Transactions</span>
-            <span className="text-base font-black text-white font-mono">{totalCount}</span>
+            <span className="text-base font-black text-slate-900 font-mono">{totalCount}</span>
           </div>
         </div>
       </div>
 
       {/* Filter Control Bar */}
-      <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-4 shadow-md">
+      <div className="bg-white border border-slate-200 p-4 rounded-2xl space-y-4 shadow-md">
         <form onSubmit={handleSearchSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
           {/* Search Box */}
           <div className="lg:col-span-2 relative">
@@ -139,11 +139,11 @@ function History() {
               placeholder="Search activity..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 text-xs font-medium text-slate-200 placeholder-slate-500 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700 placeholder-slate-400 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-indigo-500 transition-colors"
             />
             <button
               type="submit"
-              className="absolute right-2.5 top-2.5 text-slate-400 hover:text-indigo-400 transition-colors"
+              className="absolute right-2.5 top-2.5 text-slate-500 hover:text-indigo-600 transition-colors"
               title="Search"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -160,7 +160,7 @@ function History() {
                 setActivityType(e.target.value);
                 setPage(1);
               }}
-              className="w-full bg-slate-950 border border-slate-800 text-xs font-bold text-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-indigo-500 cursor-pointer"
+              className="w-full bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 rounded-xl px-3 py-2.5 focus:outline-none focus:border-indigo-500 cursor-pointer"
             >
               <option value="all">All Activity</option>
               <option value="stock_in">🟢 Stock In</option>
@@ -176,7 +176,7 @@ function History() {
                 setSelectedItem(e.target.value);
                 setPage(1);
               }}
-              className="w-full bg-slate-950 border border-slate-800 text-xs font-bold text-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-indigo-500 cursor-pointer"
+              className="w-full bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 rounded-xl px-3 py-2.5 focus:outline-none focus:border-indigo-500 cursor-pointer"
             >
               <option value="">All Items</option>
               {items.map((it) => (
@@ -195,7 +195,7 @@ function History() {
                 setSelectedProject(e.target.value);
                 setPage(1);
               }}
-              className="w-full bg-slate-950 border border-slate-800 text-xs font-bold text-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-indigo-500 cursor-pointer"
+              className="w-full bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 rounded-xl px-3 py-2.5 focus:outline-none focus:border-indigo-500 cursor-pointer"
             >
               <option value="">All Projects</option>
               {projects.map((p) => (
@@ -214,7 +214,7 @@ function History() {
                 setDateRange(e.target.value);
                 setPage(1);
               }}
-              className="w-full bg-slate-950 border border-slate-800 text-xs font-bold text-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-indigo-500 cursor-pointer"
+              className="w-full bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 rounded-xl px-3 py-2.5 focus:outline-none focus:border-indigo-500 cursor-pointer"
             >
               <option value="all">All time</option>
               <option value="today">Today</option>
@@ -226,35 +226,35 @@ function History() {
 
         {/* Active Filters Pill Bar if any filter set */}
         {(searchTerm || activityType !== 'all' || selectedItem || selectedProject || dateRange !== 'all') && (
-          <div className="flex items-center justify-between pt-2 border-t border-slate-850 text-xs">
+          <div className="flex items-center justify-between pt-2 border-t border-slate-200 text-xs">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[10px] uppercase font-extrabold text-slate-500">Active Filters:</span>
               {activityType !== 'all' && (
                 <span className={`px-2.5 py-0.5 rounded-lg text-[11px] font-extrabold uppercase border ${
                   activityType === 'stock_in' 
-                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                    : 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+                    ? 'bg-emerald-100 text-emerald-600 border-emerald-300'
+                    : 'bg-rose-100 text-rose-600 border-rose-300'
                 }`}>
                   {activityType === 'stock_in' ? '🟢 Stock In' : '🔴 Stock Out'}
                 </span>
               )}
               {searchTerm && (
-                <span className="bg-indigo-600/15 text-indigo-300 border border-indigo-500/30 px-2.5 py-0.5 rounded-lg text-[11px] font-semibold">
+                <span className="bg-indigo-100 text-indigo-300 border border-indigo-300 px-2.5 py-0.5 rounded-lg text-[11px] font-semibold">
                   Search: "{searchTerm}"
                 </span>
               )}
               {selectedItem && (
-                <span className="bg-indigo-600/15 text-indigo-300 border border-indigo-500/30 px-2.5 py-0.5 rounded-lg text-[11px] font-semibold">
+                <span className="bg-indigo-100 text-indigo-300 border border-indigo-300 px-2.5 py-0.5 rounded-lg text-[11px] font-semibold">
                   Item Filter Active
                 </span>
               )}
               {selectedProject && (
-                <span className="bg-indigo-600/15 text-indigo-300 border border-indigo-500/30 px-2.5 py-0.5 rounded-lg text-[11px] font-semibold">
+                <span className="bg-indigo-100 text-indigo-300 border border-indigo-300 px-2.5 py-0.5 rounded-lg text-[11px] font-semibold">
                   Project Filter Active
                 </span>
               )}
               {dateRange !== 'all' && (
-                <span className="bg-indigo-600/15 text-indigo-300 border border-indigo-500/30 px-2.5 py-0.5 rounded-lg text-[11px] font-semibold uppercase">
+                <span className="bg-indigo-100 text-indigo-300 border border-indigo-300 px-2.5 py-0.5 rounded-lg text-[11px] font-semibold uppercase">
                   {dateRange}
                 </span>
               )}
@@ -262,7 +262,7 @@ function History() {
 
             <button
               onClick={handleResetFilters}
-              className="text-xs font-bold text-slate-400 hover:text-rose-400 transition-colors underline"
+              className="text-xs font-bold text-slate-500 hover:text-rose-600 transition-colors underline"
             >
               Reset Filters
             </button>
@@ -272,40 +272,40 @@ function History() {
 
       {/* Main Content Area */}
       {loading ? (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-16 text-center flex flex-col items-center justify-center space-y-3">
+        <div className="bg-white border border-slate-200 rounded-2xl p-16 text-center flex flex-col items-center justify-center space-y-3">
           <svg className="animate-spin h-8 w-8 text-indigo-500" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
           </svg>
-          <span className="text-xs text-slate-400 font-medium">Loading activity history...</span>
+          <span className="text-xs text-slate-500 font-medium">Loading activity history...</span>
         </div>
       ) : error ? (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-12 text-center flex flex-col items-center justify-center space-y-4 max-w-lg mx-auto">
-          <div className="h-12 w-12 bg-rose-500/10 rounded-xl flex items-center justify-center text-rose-400 border border-rose-500/20">
+        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center flex flex-col items-center justify-center space-y-4 max-w-lg mx-auto">
+          <div className="h-12 w-12 bg-rose-50 rounded-xl flex items-center justify-center text-rose-600 border border-rose-200">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           </div>
           <div>
-            <h4 className="text-sm font-bold text-white">Unable to load activity.</h4>
-            <p className="text-xs text-slate-400 mt-1">{error}</p>
+            <h4 className="text-sm font-bold text-slate-900">Unable to load activity.</h4>
+            <p className="text-xs text-slate-500 mt-1">{error}</p>
           </div>
           <button
             onClick={fetchHistory}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl transition-all shadow-md cursor-pointer"
+            className="bg-indigo-600 hover:bg-indigo-50 text-slate-900 font-extrabold text-xs px-5 py-2.5 rounded-xl transition-all shadow-md cursor-pointer"
           >
             Try Again
           </button>
         </div>
       ) : historyRecords.length === 0 ? (
-        <div className="bg-slate-900 border border-slate-800/80 rounded-2xl p-16 text-center flex flex-col items-center justify-center space-y-3">
-          <div className="h-14 w-14 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center text-slate-500">
+        <div className="bg-white border border-slate-200 rounded-2xl p-16 text-center flex flex-col items-center justify-center space-y-3">
+          <div className="h-14 w-14 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500">
             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h4 className="text-base font-extrabold text-white uppercase tracking-wider">NO ACTIVITY YET</h4>
-          <p className="text-xs text-slate-400 max-w-md">
+          <h4 className="text-base font-extrabold text-slate-900 uppercase tracking-wider">NO ACTIVITY YET</h4>
+          <p className="text-xs text-slate-500 max-w-md">
             Once you add stock or withdraw items, activity records will appear here automatically.
           </p>
         </div>
@@ -326,8 +326,8 @@ function History() {
               return (
                 <div
                   key={record._id}
-                  className={`bg-slate-900 border-2 rounded-2xl p-5 hover:border-slate-700 transition-all shadow-md flex flex-col justify-between space-y-4 ${
-                    isStockIn ? 'border-emerald-500/20' : 'border-slate-800/90'
+                  className={`bg-white border-2 rounded-2xl p-5 hover:border-slate-300 transition-all shadow-md flex flex-col justify-between space-y-4 ${
+                    isStockIn ? 'border-emerald-200' : 'border-slate-200'
                   }`}
                 >
                   <div className="space-y-3">
@@ -337,15 +337,15 @@ function History() {
                         {itemId ? (
                           <Link
                             to={`/inventory/${itemId}`}
-                            className="text-base font-extrabold text-white hover:text-indigo-400 transition-colors line-clamp-1"
+                            className="text-base font-extrabold text-slate-900 hover:text-indigo-600 transition-colors line-clamp-1"
                           >
                             {itemName}
                           </Link>
                         ) : (
-                          <h4 className="text-base font-extrabold text-white line-clamp-1">{itemName}</h4>
+                          <h4 className="text-base font-extrabold text-slate-900 line-clamp-1">{itemName}</h4>
                         )}
 
-                        <span className="font-mono text-xs font-bold text-slate-400 mt-1 block">
+                        <span className="font-mono text-xs font-bold text-slate-500 mt-1 block">
                           📍 {locationCode}
                         </span>
                       </div>
@@ -353,21 +353,21 @@ function History() {
                       {/* Quantity & Type Badge */}
                       <span className={`px-3 py-1 rounded-xl text-xs font-black shrink-0 font-mono border ${
                         isStockIn
-                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25'
-                          : 'bg-rose-500/10 text-rose-400 border-rose-500/25'
+                          ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                          : 'bg-rose-50 text-rose-600 border-rose-200'
                       }`}>
                         {isStockIn ? `+${qty}` : `−${qty}`} {qty === 1 ? 'unit' : 'units'}
                       </span>
                     </div>
 
                     {/* Transaction Details (Reason for Stock In vs Project for Stock Out) */}
-                    <div className="bg-slate-950/60 border border-slate-850 p-3 rounded-xl flex items-center justify-between text-xs">
+                    <div className="bg-slate-100 border border-slate-200 p-3 rounded-xl flex items-center justify-between text-xs">
                       {isStockIn ? (
                         <>
                           <span className="text-slate-500 font-semibold flex items-center gap-1">
                             <span className="w-2 h-2 rounded-full bg-emerald-400"></span> Stock Added:
                           </span>
-                          <span className="font-bold text-emerald-400">Reason: {record.reason}</span>
+                          <span className="font-bold text-emerald-600">Reason: {record.reason}</span>
                         </>
                       ) : (
                         <>
@@ -377,12 +377,12 @@ function History() {
                           {projectId ? (
                             <Link
                               to={`/projects/${projectId}`}
-                              className="font-bold text-indigo-400 hover:underline"
+                              className="font-bold text-indigo-600 hover:underline"
                             >
                               {projectName}
                             </Link>
                           ) : (
-                            <span className="font-bold text-slate-300">{projectName}</span>
+                            <span className="font-bold text-slate-600">{projectName}</span>
                           )}
                         </>
                       )}
@@ -390,7 +390,7 @@ function History() {
 
                     {/* Notes if present */}
                     {record.notes && (
-                      <div className="text-xs text-slate-300 italic bg-slate-950/40 p-3 rounded-xl border border-slate-850/80">
+                      <div className="text-xs text-slate-600 italic bg-slate-100 p-3 rounded-xl border border-slate-200">
                         <span className="not-italic text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                           Notes:
                         </span>
@@ -400,7 +400,7 @@ function History() {
                   </div>
 
                   {/* Timestamp Footer */}
-                  <div className="pt-3 border-t border-slate-850 flex items-center justify-between text-[11px] text-slate-400">
+                  <div className="pt-3 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-500">
                     <span className="flex items-center gap-1.5 font-medium">
                       <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -415,8 +415,8 @@ function History() {
 
           {/* Pagination Controls */}
           {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-2xl">
-              <span className="text-xs text-slate-400 font-medium font-mono">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white border border-slate-200 p-4 rounded-2xl">
+              <span className="text-xs text-slate-500 font-medium font-mono">
                 Showing {Math.min((page - 1) * limit + 1, totalCount)}–{Math.min(page * limit, totalCount)} of {totalCount}
               </span>
 
@@ -424,17 +424,17 @@ function History() {
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="bg-slate-950 border border-slate-800 hover:border-slate-700 text-xs font-bold text-slate-300 disabled:text-slate-600 px-3.5 py-2 rounded-xl transition-all cursor-pointer disabled:cursor-not-allowed"
+                  className="bg-slate-50 border border-slate-200 hover:border-slate-300 text-xs font-bold text-slate-600 disabled:text-slate-600 px-3.5 py-2 rounded-xl transition-all cursor-pointer disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
-                <span className="text-xs font-bold text-slate-400 px-2 font-mono">
+                <span className="text-xs font-bold text-slate-500 px-2 font-mono">
                   Page {page} of {totalPages}
                 </span>
                 <button
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
-                  className="bg-slate-950 border border-slate-800 hover:border-slate-700 text-xs font-bold text-slate-300 disabled:text-slate-600 px-3.5 py-2 rounded-xl transition-all cursor-pointer disabled:cursor-not-allowed"
+                  className="bg-slate-50 border border-slate-200 hover:border-slate-300 text-xs font-bold text-slate-600 disabled:text-slate-600 px-3.5 py-2 rounded-xl transition-all cursor-pointer disabled:cursor-not-allowed"
                 >
                   Next
                 </button>

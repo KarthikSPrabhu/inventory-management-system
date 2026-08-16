@@ -62,29 +62,29 @@ function AddBuyListModal({ isOpen, onClose, onSuccess }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 select-none">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-white backdrop-blur-sm transition-opacity"
         onClick={submitting ? undefined : onClose}
       />
 
       {/* Modal Container */}
-      <div className="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden z-10 animate-fadeIn max-h-[90vh] overflow-y-auto">
+      <div className="relative w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden z-10 animate-fadeIn max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/50">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-100">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+            <div className="w-8 h-8 rounded-xl bg-indigo-100 border border-indigo-300 flex items-center justify-center text-indigo-600">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
               </svg>
             </div>
             <div>
-              <h3 className="text-sm font-extrabold text-white">ADD TO BUY LIST</h3>
-              <p className="text-[11px] text-slate-400">Note an item you need to purchase later.</p>
+              <h3 className="text-sm font-extrabold text-slate-900">ADD TO BUY LIST</h3>
+              <p className="text-[11px] text-slate-500">Note an item you need to purchase later.</p>
             </div>
           </div>
           <button
             onClick={onClose}
             disabled={submitting}
-            className="text-slate-500 hover:text-slate-300 p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
+            className="text-slate-500 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
@@ -94,7 +94,7 @@ function AddBuyListModal({ isOpen, onClose, onSuccess }) {
 
         {/* Error Alert */}
         {errorMsg && (
-          <div className="mx-6 mt-4 p-3 bg-rose-500/10 border border-rose-500/25 rounded-xl text-rose-400 text-xs">
+          <div className="mx-6 mt-4 p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-600 text-xs">
             {errorMsg}
           </div>
         )}
@@ -103,7 +103,7 @@ function AddBuyListModal({ isOpen, onClose, onSuccess }) {
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Item Name */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-350 uppercase tracking-wide">Item Name *</label>
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Item Name *</label>
             <input
               type="text"
               value={name}
@@ -111,13 +111,13 @@ function AddBuyListModal({ isOpen, onClose, onSuccess }) {
               disabled={submitting}
               placeholder="e.g. ESP32 DevKit V1"
               required
-              className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none transition-colors"
+              className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-colors"
             />
           </div>
 
           {/* Quantity Needed */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-350 uppercase tracking-wide">Quantity Needed *</label>
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Quantity Needed *</label>
             <input
               type="number"
               min="1"
@@ -126,20 +126,20 @@ function AddBuyListModal({ isOpen, onClose, onSuccess }) {
               onChange={(e) => setQuantityNeeded(e.target.value)}
               disabled={submitting}
               required
-              className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none transition-colors"
+              className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none transition-colors"
             />
           </div>
 
           {/* Note */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-350 uppercase tracking-wide">Note (Optional)</label>
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Note (Optional)</label>
             <textarea
               rows="3"
               value={note}
               onChange={(e) => setNote(e.target.value)}
               disabled={submitting}
               placeholder="e.g. For smart robotics project"
-              className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-650 focus:outline-none transition-colors resize-none"
+              className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-650 focus:outline-none transition-colors resize-none"
             />
           </div>
 
@@ -149,18 +149,18 @@ function AddBuyListModal({ isOpen, onClose, onSuccess }) {
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 font-bold text-xs px-4 py-2.5 rounded-xl transition-all"
+              className="bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 font-bold text-xs px-4 py-2.5 rounded-xl transition-all"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={!isFormValid}
-              className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-600/25 flex items-center gap-1.5 cursor-pointer"
+              className="bg-indigo-600 hover:bg-indigo-50 disabled:bg-slate-100 disabled:text-slate-600 text-slate-900 font-extrabold text-xs px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-600/25 flex items-center gap-1.5 cursor-pointer"
             >
               {submitting ? (
                 <>
-                  <svg className="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin h-3.5 w-3.5 text-slate-900" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>

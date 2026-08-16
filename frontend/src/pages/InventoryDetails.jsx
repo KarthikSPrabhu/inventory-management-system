@@ -113,7 +113,7 @@ function InventoryDetails() {
 
   if (loading) {
     return (
-      <div className="bg-slate-900 border border-slate-800/80 rounded-2xl p-16 text-center flex flex-col items-center justify-center gap-3 animate-fadeIn">
+      <div className="bg-white border border-slate-200 rounded-2xl p-16 text-center flex flex-col items-center justify-center gap-3 animate-fadeIn">
         <svg className="animate-spin h-8 w-8 text-indigo-500" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -125,26 +125,26 @@ function InventoryDetails() {
 
   if (error || !item) {
     return (
-      <div className="bg-slate-900 border border-slate-800/80 rounded-2xl p-8 text-center flex flex-col items-center justify-center space-y-4 max-w-lg mx-auto animate-fadeIn">
-        <div className="h-12 w-12 bg-rose-500/10 rounded-xl flex items-center justify-center text-rose-400">
+      <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center flex flex-col items-center justify-center space-y-4 max-w-lg mx-auto animate-fadeIn">
+        <div className="h-12 w-12 bg-rose-50 rounded-xl flex items-center justify-center text-rose-600">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
         </div>
         <div>
-          <h4 className="text-sm font-bold text-white">Failed to retrieve item</h4>
+          <h4 className="text-sm font-bold text-slate-900">Failed to retrieve item</h4>
           <p className="text-xs text-slate-500 mt-1">{error || 'This item may have been removed or does not exist.'}</p>
         </div>
         <div className="flex gap-3">
           <button
             onClick={fetchItemDetails}
-            className="bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-350 font-bold text-xs px-4 py-2.5 rounded-xl transition-all"
+            className="bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 font-bold text-xs px-4 py-2.5 rounded-xl transition-all"
           >
             Try Again
           </button>
           <Link
             to="/inventory"
-            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all"
+            className="bg-indigo-600 hover:bg-indigo-50 text-slate-900 font-bold text-xs px-4 py-2.5 rounded-xl transition-all"
           >
             Back to Inventory
           </Link>
@@ -159,13 +159,13 @@ function InventoryDetails() {
   let stockBadgeClass = '';
   let stockText = '';
   if (quantity > 5) {
-    stockBadgeClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+    stockBadgeClass = 'bg-emerald-50 text-emerald-600 border-emerald-200';
     stockText = `${quantity} available (In Stock)`;
   } else if (quantity > 0) {
-    stockBadgeClass = 'bg-amber-500/10 text-amber-400 border-amber-500/20 animate-pulse';
+    stockBadgeClass = 'bg-amber-50 text-amber-600 border-amber-200 animate-pulse';
     stockText = `${quantity} available (Low Stock)`;
   } else {
-    stockBadgeClass = 'bg-rose-500/10 text-rose-450 border-rose-500/20';
+    stockBadgeClass = 'bg-rose-50 text-rose-450 border-rose-200';
     stockText = '0 available (Out of Stock)';
   }
 
@@ -184,7 +184,7 @@ function InventoryDetails() {
       <div className="flex items-center justify-between">
         <Link
           to="/inventory"
-          className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-indigo-400 transition-colors"
+          className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-indigo-600 transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
@@ -196,7 +196,7 @@ function InventoryDetails() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsAddStockOpen(true)}
-              className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs px-4 py-2 rounded-xl transition-all shadow-md cursor-pointer"
+              className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-50 text-slate-900 font-extrabold text-xs px-4 py-2 rounded-xl transition-all shadow-md cursor-pointer"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" />
@@ -206,7 +206,7 @@ function InventoryDetails() {
 
             <button
               onClick={handleDeleteItem}
-              className="inline-flex items-center gap-1 bg-rose-500/15 hover:bg-rose-500 text-rose-400 hover:text-white border border-rose-500/30 text-xs font-extrabold px-3 py-2 rounded-xl transition-all cursor-pointer"
+              className="inline-flex items-center gap-1 bg-rose-100 hover:bg-rose-50 text-rose-600 hover:text-slate-900 border border-rose-300 text-xs font-extrabold px-3 py-2 rounded-xl transition-all cursor-pointer"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -219,8 +219,8 @@ function InventoryDetails() {
 
       {/* Flash Success Notification */}
       {flashMessage && (
-        <div className="bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 p-4 rounded-xl text-xs flex gap-3 items-center">
-          <svg className="w-5 h-5 shrink-0 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-600 p-4 rounded-xl text-xs flex gap-3 items-center">
+          <svg className="w-5 h-5 shrink-0 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <div className="font-semibold">{flashMessage}</div>
@@ -229,37 +229,37 @@ function InventoryDetails() {
 
       {/* Item Summary Cards (Requirement 17) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-slate-900 border border-slate-800 p-4 sm:p-5 rounded-2xl shadow-md">
+        <div className="bg-white border border-slate-200 p-4 sm:p-5 rounded-2xl shadow-md">
           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Current Stock</span>
-          <span className="text-2xl font-black text-emerald-400 font-mono mt-1 block">
+          <span className="text-2xl font-black text-emerald-600 font-mono mt-1 block">
             {quantity}
           </span>
-          <span className="text-[11px] text-slate-400 mt-1 block">Units available</span>
+          <span className="text-[11px] text-slate-500 mt-1 block">Units available</span>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 p-4 sm:p-5 rounded-2xl shadow-md">
+        <div className="bg-white border border-slate-200 p-4 sm:p-5 rounded-2xl shadow-md">
           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Added</span>
-          <span className="text-2xl font-black text-emerald-400 font-mono mt-1 block">
+          <span className="text-2xl font-black text-emerald-600 font-mono mt-1 block">
             {usageSummary.totalAdded}
           </span>
-          <span className="text-[11px] text-slate-400 mt-1 block">Total units ever restocked</span>
+          <span className="text-[11px] text-slate-500 mt-1 block">Total units ever restocked</span>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 p-4 sm:p-5 rounded-2xl shadow-md">
+        <div className="bg-white border border-slate-200 p-4 sm:p-5 rounded-2xl shadow-md">
           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Used</span>
-          <span className="text-2xl font-black text-rose-400 font-mono mt-1 block">
+          <span className="text-2xl font-black text-rose-600 font-mono mt-1 block">
             {usageSummary.totalUnitsUsed}
           </span>
-          <span className="text-[11px] text-slate-400 mt-1 block">Total units ever withdrawn</span>
+          <span className="text-[11px] text-slate-500 mt-1 block">Total units ever withdrawn</span>
         </div>
       </div>
 
       {/* Structured splits container */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         {/* Left / Middle: Item Details Visual Card */}
-        <div className="lg:col-span-2 bg-slate-900 border border-slate-800/80 rounded-2xl overflow-hidden shadow-xl flex flex-col">
+        <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xl flex flex-col">
           {/* Image Display */}
-          <div className="h-64 sm:h-80 bg-slate-950/80 border-b border-slate-850 flex items-center justify-center relative overflow-hidden select-none">
+          <div className="h-64 sm:h-80 bg-white border-b border-slate-200 flex items-center justify-center relative overflow-hidden select-none">
             {image && image.trim() ? (
               <img
                 src={image.trim()}
@@ -273,7 +273,7 @@ function InventoryDetails() {
             ) : null}
             <div
               style={{ display: image && image.trim() ? 'none' : 'flex' }}
-              className="absolute inset-0 flex flex-col items-center justify-center text-slate-700 bg-slate-950/30"
+              className="absolute inset-0 flex flex-col items-center justify-center text-slate-700 bg-slate-50"
             >
               <svg className="w-16 h-16 stroke-[1]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
@@ -285,12 +285,12 @@ function InventoryDetails() {
           {/* Texts & Stats content */}
           <div className="p-6 sm:p-8 space-y-6">
             <div className="space-y-3">
-              <h3 className="text-xl font-bold text-white tracking-tight leading-tight">{name}</h3>
+              <h3 className="text-xl font-bold text-slate-900 tracking-tight leading-tight">{name}</h3>
               
               <div className="flex">
                 <span className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-lg text-xs font-semibold border ${stockBadgeClass}`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${
-                    quantity > 5 ? 'bg-emerald-400' : quantity > 0 ? 'bg-amber-400' : 'bg-rose-500'
+                    quantity > 5 ? 'bg-emerald-400' : quantity > 0 ? 'bg-amber-400' : 'bg-rose-50'
                   }`}></span>
                   {stockText}
                 </span>
@@ -298,22 +298,22 @@ function InventoryDetails() {
             </div>
 
             {/* Time Metrics Logs */}
-            <div className="pt-4 border-t border-slate-850/60 space-y-1.5 text-xs text-slate-500">
+            <div className="pt-4 border-t border-slate-200 space-y-1.5 text-xs text-slate-500">
               <div className="flex justify-between">
                 <span>Date Created:</span>
-                <span className="font-semibold text-slate-400">{new Date(createdAt).toLocaleString()}</span>
+                <span className="font-semibold text-slate-500">{new Date(createdAt).toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
                 <span>Last Updated:</span>
-                <span className="font-semibold text-slate-400">{new Date(updatedAt).toLocaleString()}</span>
+                <span className="font-semibold text-slate-500">{new Date(updatedAt).toLocaleString()}</span>
               </div>
             </div>
 
             {/* Action buttons */}
-            <div className="pt-4 border-t border-slate-850 flex flex-col sm:flex-row gap-3">
+            <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row gap-3">
               <button
                 onClick={() => setIsAddStockOpen(true)}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl transition-all text-center flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
+                className="flex-1 bg-emerald-600 hover:bg-emerald-50 text-slate-900 font-extrabold text-xs px-4 py-2.5 rounded-xl transition-all text-center flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" />
@@ -323,7 +323,7 @@ function InventoryDetails() {
               
               <Link
                 to="/inventory"
-                className="flex-1 bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 font-bold text-xs px-4 py-2.5 rounded-xl transition-all text-center flex items-center justify-center"
+                className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 font-bold text-xs px-4 py-2.5 rounded-xl transition-all text-center flex items-center justify-center"
               >
                 Back to Inventory Workspace
               </Link>
@@ -338,15 +338,15 @@ function InventoryDetails() {
       </div>
 
       {/* ACTIVITY HISTORY Section (Stock In 🟢 and Stock Out 🔴) */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-6 shadow-lg">
-        <div className="flex items-center justify-between border-b border-slate-850 pb-4">
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 space-y-6 shadow-lg">
+        <div className="flex items-center justify-between border-b border-slate-200 pb-4">
           <div>
-            <h3 className="text-base font-extrabold text-white tracking-tight uppercase">ACTIVITY HISTORY</h3>
-            <p className="text-xs text-slate-400 mt-0.5">Chronological log of restocks and withdrawals for {name}</p>
+            <h3 className="text-base font-extrabold text-slate-900 tracking-tight uppercase">ACTIVITY HISTORY</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Chronological log of restocks and withdrawals for {name}</p>
           </div>
           <Link
             to="/history"
-            className="text-xs font-extrabold text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1"
+            className="text-xs font-extrabold text-indigo-600 hover:text-indigo-300 transition-colors flex items-center gap-1"
           >
             <span>View All History</span>
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -361,14 +361,14 @@ function InventoryDetails() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
-            <span className="text-xs text-slate-400">Loading item activity...</span>
+            <span className="text-xs text-slate-500">Loading item activity...</span>
           </div>
         ) : usageError ? (
-          <div className="bg-rose-500/10 border border-rose-500/20 p-4 rounded-xl text-center space-y-2">
-            <p className="text-xs text-rose-400 font-semibold">{usageError}</p>
+          <div className="bg-rose-50 border border-rose-200 p-4 rounded-xl text-center space-y-2">
+            <p className="text-xs text-rose-600 font-semibold">{usageError}</p>
             <button
               onClick={fetchItemUsage}
-              className="text-xs font-bold text-slate-300 underline hover:text-white"
+              className="text-xs font-bold text-slate-600 underline hover:text-slate-900"
             >
               Try Again
             </button>
@@ -388,35 +388,35 @@ function InventoryDetails() {
               return (
                 <div
                   key={rec._id}
-                  className="bg-slate-950/70 border border-slate-850 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                  className="bg-slate-100 border border-slate-200 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                 >
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className={`inline-flex items-center gap-1 text-[11px] font-black uppercase px-2 py-0.5 rounded ${
                         isStockIn
-                          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                          : 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/30'
+                          ? 'bg-emerald-100 text-emerald-600 border border-emerald-300'
+                          : 'bg-indigo-100 text-indigo-600 border border-indigo-300'
                       }`}>
                         {isStockIn ? '🟢 Stock Added' : '🔴 Withdrawal'}
                       </span>
 
                       {isStockIn ? (
-                        <span className="text-xs font-bold text-slate-300">
-                          Reason: <span className="text-white">{rec.reason}</span>
+                        <span className="text-xs font-bold text-slate-600">
+                          Reason: <span className="text-slate-900">{rec.reason}</span>
                         </span>
                       ) : (
                         <>
                           {projId ? (
                             <Link
                               to={`/projects/${projId}`}
-                              className="text-xs font-bold text-indigo-400 hover:underline"
+                              className="text-xs font-bold text-indigo-600 hover:underline"
                             >
                               {projName}
                             </Link>
                           ) : (
-                            <span className="text-xs font-bold text-slate-300">{projName}</span>
+                            <span className="text-xs font-bold text-slate-600">{projName}</span>
                           )}
-                          <span className="font-mono text-[11px] font-bold text-slate-400">
+                          <span className="font-mono text-[11px] font-bold text-slate-500">
                             📍 {locationCode}
                           </span>
                         </>
@@ -424,17 +424,17 @@ function InventoryDetails() {
                     </div>
 
                     {rec.notes && (
-                      <p className="text-xs text-slate-400 italic">"{rec.notes}"</p>
+                      <p className="text-xs text-slate-500 italic">"{rec.notes}"</p>
                     )}
                   </div>
 
                   <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0">
                     <span className={`text-xs font-bold font-mono ${
-                      isStockIn ? 'text-emerald-400' : 'text-rose-400'
+                      isStockIn ? 'text-emerald-600' : 'text-rose-600'
                     }`}>
                       {isStockIn ? `+${rec.quantity}` : `−${rec.quantity}`} {rec.quantity === 1 ? 'unit' : 'units'}
                     </span>
-                    <span className="text-xs text-slate-400 font-mono">
+                    <span className="text-xs text-slate-500 font-mono">
                       {formatDate(rec.createdAt)}
                     </span>
                   </div>

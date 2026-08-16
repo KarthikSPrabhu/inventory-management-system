@@ -37,22 +37,22 @@ function StorageVisualizer({ selectedDrawer = 0, location = null, onSelectDrawer
       {/* Header bar */}
       <div className="w-full flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
-          <div className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
-          <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+          <div className="w-2.5 h-2.5 rounded-full bg-indigo-50" />
+          <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">
             Physical Storage Rack
           </span>
         </div>
       </div>
 
       {/* Main Hero Container */}
-      <div className="relative w-full max-w-xl min-h-[380px] sm:min-h-[500px] bg-slate-950/70 border border-slate-800/80 rounded-2xl p-3 sm:p-4 flex flex-col items-center justify-center overflow-hidden shadow-2xl backdrop-blur-sm">
+      <div className="relative w-full max-w-xl min-h-[380px] sm:min-h-[500px] bg-white border border-slate-100 rounded-2xl p-3 sm:p-4 flex flex-col items-center justify-center overflow-hidden shadow-[0_15px_40px_-15px_rgba(0,0,0,0.1)] ring-4 ring-slate-50">
         
         {/* Storage Rack Image Wrapper — Locked to Rack Aspect Ratio 375:666 */}
         <div className="relative h-[360px] sm:h-[460px] lg:h-[500px] aspect-[375/666] flex items-center justify-center">
           <img
             src={targetImage}
             alt="Physical Storage Rack"
-            className="w-full h-full object-contain filter drop-shadow-[0_15px_30px_rgba(0,0,0,0.8)]"
+            className="w-full h-full object-contain filter drop-shadow-[0_15px_30px_rgba(0,0,0,0.25)]"
           />
 
           {/* 100% Precise Overlay Click Targets aligned to physical rack frame [Y: 4.8%..94.4%, X: 21.3%..77.9%] */}

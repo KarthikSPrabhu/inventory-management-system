@@ -51,13 +51,13 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
   let stockStatusLabel = '';
   
   if (quantity > threshold) {
-    stockBadgeClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25';
+    stockBadgeClass = 'bg-emerald-50 text-emerald-600 border-emerald-200';
     stockStatusLabel = 'IN STOCK';
   } else if (quantity > 0) {
-    stockBadgeClass = 'bg-amber-500/10 text-amber-400 border-amber-500/25';
+    stockBadgeClass = 'bg-amber-50 text-amber-600 border-amber-200';
     stockStatusLabel = 'LOW STOCK';
   } else {
-    stockBadgeClass = 'bg-rose-500/10 text-rose-400 border-rose-500/25';
+    stockBadgeClass = 'bg-rose-50 text-rose-600 border-rose-200';
     stockStatusLabel = 'OUT OF STOCK';
   }
 
@@ -65,15 +65,15 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
     <div
       onClick={() => onLocate && onLocate(item)}
       className={`
-        bg-slate-900 border-2 rounded-2xl overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 flex flex-col group cursor-pointer select-none
+        bg-white border-2 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col group cursor-pointer select-none
         ${isLocated
-          ? 'border-indigo-500/80 shadow-[0_0_25px_rgba(99,102,241,0.25)] ring-1 ring-indigo-500/30'
-          : 'border-slate-800/80 hover:border-slate-700/80'
+          ? 'border-indigo-500 shadow-[0_8px_30px_rgba(99,102,241,0.2)] ring-4 ring-indigo-500/10'
+          : 'border-slate-100 hover:border-indigo-200 hover:shadow-indigo-500/10'
         }
       `}
     >
       {/* Product Image preview / placeholder window */}
-      <div className="h-44 bg-slate-950/80 border-b border-slate-850 flex items-center justify-center relative overflow-hidden shrink-0 select-none">
+      <div className="h-44 bg-white border-b border-slate-200 flex items-center justify-center relative overflow-hidden shrink-0 select-none">
         {image && image.trim() ? (
           <img
             src={image.trim()}
@@ -89,12 +89,12 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
         {/* Placeholder container */}
         <div
           style={{ display: image && image.trim() ? 'none' : 'flex' }}
-          className="absolute inset-0 flex flex-col items-center justify-center text-slate-700 bg-slate-950/40"
+          className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 bg-slate-50"
         >
-          <svg className="w-12 h-12 stroke-[1.2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-12 h-12 stroke-[1.2] mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
           </svg>
-          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-650 mt-2">No Image Provided</span>
+          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">No Image</span>
         </div>
       </div>
 
@@ -102,14 +102,14 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
       <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
         {/* Title and Stock badge */}
         <div className="space-y-2">
-          <h4 className="text-sm font-bold text-slate-100 group-hover:text-indigo-400 transition-colors line-clamp-2 min-h-[40px]">
+          <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-2 min-h-[40px]">
             {highlightText(name, searchQuery)}
           </h4>
           
           <div className="flex items-center gap-2">
             <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-extrabold border ${stockBadgeClass}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${
-                quantity > threshold ? 'bg-emerald-400' : quantity > 0 ? 'bg-amber-400' : 'bg-rose-500'
+              <span className={`w-1.5 h-1.5 rounded-full shadow-sm ${
+                quantity > threshold ? 'bg-emerald-50' : quantity > 0 ? 'bg-amber-50' : 'bg-rose-50'
               }`}></span>
               <span>{quantity} available &bull; {stockStatusLabel}</span>
             </span>
@@ -117,13 +117,13 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
         </div>
 
         {/* Location information */}
-        <div className="space-y-3 pt-3 border-t border-slate-850/60 text-xs">
+        <div className="space-y-3 pt-3 border-t border-slate-200 text-xs">
           <div className="flex items-center justify-between">
             <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Location Code</span>
             
             {/* Badge + Copy Trigger */}
             <div className="flex items-center gap-1.5">
-              <span className="font-mono text-xs font-bold text-indigo-400 bg-slate-950 px-2.5 py-0.5 rounded-lg border border-slate-850">
+              <span className="font-mono text-xs font-bold text-indigo-600 bg-slate-50 px-2.5 py-0.5 rounded-lg border border-slate-200">
                 📍 {highlightText(code, searchQuery)}
               </span>
               
@@ -132,8 +132,8 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
                 title="Copy location code"
                 className={`p-1.5 rounded-md border transition-colors flex items-center justify-center ${
                   copied 
-                    ? 'bg-emerald-500/10 text-emerald-450 border-emerald-500/25' 
-                    : 'bg-slate-950 hover:bg-slate-850 text-slate-550 hover:text-slate-300 border-slate-850 hover:border-slate-700'
+                    ? 'bg-emerald-50 text-emerald-450 border-emerald-200' 
+                    : 'bg-slate-50 hover:bg-slate-100 text-slate-550 hover:text-slate-600 border-slate-200 hover:border-slate-300'
                 }`}
               >
                 {copied ? (
@@ -150,12 +150,12 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
           </div>
 
           {/* Coordinates row */}
-          <div className="text-slate-400 flex items-center justify-between text-[11px] leading-tight">
-            <div>Sec: <strong className="text-white">{highlightText(section, searchQuery)}</strong></div>
+          <div className="text-slate-500 flex items-center justify-between text-[11px] leading-tight">
+            <div>Sec: <strong className="text-slate-900">{highlightText(section, searchQuery)}</strong></div>
             <div className="text-slate-800 font-bold">&bull;</div>
-            <div>Unit: <strong className="text-white">{storageUnit}</strong></div>
+            <div>Unit: <strong className="text-slate-900">{storageUnit}</strong></div>
             <div className="text-slate-800 font-bold">&bull;</div>
-            <div>Box: <strong className="text-white">{box}</strong></div>
+            <div>Box: <strong className="text-slate-900">{box}</strong></div>
           </div>
         </div>
 
@@ -172,8 +172,8 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
               title="Take item for a project"
               className={`h-9 font-extrabold text-[11px] px-1.5 rounded-xl transition-all flex items-center justify-center gap-1 min-w-0 ${
                 quantity > 0
-                  ? 'bg-purple-600/15 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/30 cursor-pointer shadow-sm'
-                  : 'bg-slate-950 text-slate-600 border border-slate-850 cursor-not-allowed opacity-50'
+                  ? 'bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 hover:border-indigo-600:border-indigo-400 cursor-pointer shadow-sm hover:shadow-md hover:-translate-y-0.5'
+                  : 'bg-slate-50 text-slate-400 border border-slate-200 cursor-not-allowed'
               }`}
             >
               <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -193,7 +193,7 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
                 onAddStock(item);
               }}
               title="Add stock to inventory"
-              className="h-9 bg-emerald-600/15 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/30 font-extrabold text-[11px] px-1.5 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer shadow-sm min-w-0"
+              className="h-9 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 hover:border-emerald-600 font-extrabold text-[11px] px-1.5 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer shadow-sm hover:shadow-md hover:-translate-y-0.5 min-w-0"
             >
               <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
@@ -208,10 +208,10 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
             to={`/inventory/${_id}`}
             onClick={(e) => e.stopPropagation()}
             title="View item details"
-            className="h-9 bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white font-bold text-[11px] px-1.5 rounded-xl transition-all flex items-center justify-center gap-1 text-center min-w-0"
+            className="h-9 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-900 font-bold text-[11px] px-1.5 rounded-xl transition-all flex items-center justify-center gap-1 text-center min-w-0 shadow-sm hover:shadow-md hover:-translate-y-0.5"
           >
             <span className="truncate">Details</span>
-            <svg className="w-3 h-3 text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3 h-3 text-slate-400 shrink-0 group-hover:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
             </svg>
           </Link>
