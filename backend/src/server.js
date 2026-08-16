@@ -20,11 +20,45 @@ app.use(helmet({
 }));
 
 // 2. CORS Configuration
-const allowedOrigin = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
+const defaultAllowedOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:5000',
+  'http://127.0.0.1:5000'
+];
+
+const envOrigins = (process.env.CLIENT_URL || process.env.FRONTEND_URL || process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
+
+const allowedOriginsSet = new Set([...defaultAllowedOrigins, ...envOrigins]);
+
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true; // Allow requests with no origin (curl, postman, mobile apps)
+  if (allowedOriginsSet.has(origin)) return true;
+  if (process.env.CLIENT_URL === '*') return true;
+
+  // Dynamically match local LAN IP origins (e.g., http://192.168.x.x:5173, http://10.x.x.x:5173)
+  try {
+    const url = new URL(origin);
+    const hostname = url.hostname;
+    const isLocalLAN = 
+      /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+      /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+      /^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(hostname);
+
+    if (isLocalLAN) return true;
+  } catch {
+    return false;
+  }
+
+  return false;
+};
+
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, postman) or matching allowed client URL
-    if (!origin || origin === allowedOrigin || allowedOrigin === '*') {
+    if (isAllowedOrigin(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Blocked by CORS policy'));

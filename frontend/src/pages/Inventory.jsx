@@ -320,11 +320,31 @@ function Inventory() {
       ) : items.length === 0 ? (
         <InventoryEmptyState />
       ) : (
-        /* ═══ PERMANENT 2-COLUMN UNIFIED WORKSPACE LAYOUT ═══ */
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        /* ═══ WORKSPACE LAYOUT ═══ */
+        <div className="flex flex-col lg:grid lg:grid-cols-12 gap-8 items-start">
           
-          {/* LEFT / CENTER COLUMN: Inventory Items List (~65% desktop width / 7 cols) */}
-          <div className="lg:col-span-7 space-y-4">
+          {/* PHYSICAL STORAGE RACK PANEL: Appears FIRST on mobile (order-1), RIGHT COLUMN on desktop (order-2, lg:col-span-5) */}
+          <div ref={visualizerRef} className="order-1 lg:order-2 lg:col-span-5 space-y-5 lg:sticky lg:top-20 w-full">
+            {/* Storage Rack Visualizer */}
+            <StorageVisualizer
+              selectedDrawer={activeBoxDrawer}
+              location={selectedItem?.location}
+              item={selectedItem}
+              onSelectDrawer={handleSelectBoxDrawer}
+              onReset={handleResetStorageView}
+            />
+
+            {/* Storage Location & Open Box Breakdown Panel */}
+            <StorageLocationPanel
+              selectedDrawer={activeBoxDrawer}
+              drawerItems={itemsInActiveDrawer}
+              location={selectedItem?.location}
+              item={selectedItem}
+            />
+          </div>
+
+          {/* INVENTORY CATALOG LIST: Appears SECOND on mobile (order-2), LEFT COLUMN on desktop (order-1, lg:col-span-7) */}
+          <div className="order-2 lg:order-1 lg:col-span-7 space-y-4 w-full">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
@@ -378,26 +398,6 @@ function Inventory() {
                 })}
               </div>
             )}
-          </div>
-
-          {/* RIGHT COLUMN: PERMANENT PHYSICAL STORAGE PANEL (~35% desktop width / 5 cols) */}
-          <div ref={visualizerRef} className="lg:col-span-5 space-y-5 lg:sticky lg:top-20">
-            {/* Storage Rack Visualizer */}
-            <StorageVisualizer
-              selectedDrawer={activeBoxDrawer}
-              location={selectedItem?.location}
-              item={selectedItem}
-              onSelectDrawer={handleSelectBoxDrawer}
-              onReset={handleResetStorageView}
-            />
-
-            {/* Storage Location & Open Box Breakdown Panel */}
-            <StorageLocationPanel
-              selectedDrawer={activeBoxDrawer}
-              drawerItems={itemsInActiveDrawer}
-              location={selectedItem?.location}
-              item={selectedItem}
-            />
           </div>
 
         </div>

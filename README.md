@@ -618,13 +618,38 @@ We transformed the existing application into a fully mobile-responsive web appli
 * **Projects & Buy List**: 1-column mobile card stack with full-width action buttons.
 * **Modals**: All modals (`TakeItemModal`, `AddStockModal`, `CreateProjectModal`, `AddBuyListModal`) feature internal scroll bounds (`max-h-[90vh] overflow-y-auto`) and mobile padding (`p-4 sm:p-6`).
 
-### 5. Screen Sizes Tested & Verified
-* `390 × 844` (iPhone 12/13/14)
-* `412 × 915` (Large Android / Pixel)
-* `768 × 1024` (Tablet)
-* `1024 × 768` (Tablet Landscape)
-* `1366 × 768` (Standard Desktop)
-* `1920 × 1080` (Large Monitor)
+---
+
+## Testing on a Phone Over Local Wi-Fi
+
+To test the Inventory Management System on a smartphone connected to your local network:
+
+1. **Connect PC and Phone**: Ensure both your development PC and mobile phone are connected to the same Wi-Fi network.
+2. **Start Backend Server**:
+   ```bash
+   cd backend
+   npm run dev
+   ```
+3. **Start Frontend with LAN Access**:
+   ```bash
+   cd frontend
+   npm run dev
+   ```
+4. **Find PC IPv4 Address**:
+   Open Windows Command Prompt / PowerShell on your PC and run:
+   ```cmd
+   ipconfig
+   ```
+   Note the `IPv4 Address` under your active Wi-Fi adapter (e.g. `192.168.1.50`).
+5. **Access Application on Phone**:
+   Open a browser on your smartphone and navigate to:
+   ```text
+   http://<PC-IP>:5173
+   ```
+   (e.g., `http://192.168.1.50:5173`).
+6. **Authentication & Features**:
+   Log in with demo credentials (`admin@inventory.com` / `Admin@12345`). All API requests, inventory workflows, physical storage visualizers, history logs, and buy lists will seamlessly operate over your local network.
+
 
 
 
