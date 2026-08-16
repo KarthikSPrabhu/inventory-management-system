@@ -136,7 +136,7 @@ function Analytics() {
         </div>
 
         {/* Date Range Selector */}
-        <div className="flex items-center gap-2 bg-slate-950 border border-slate-850 p-1.5 rounded-xl shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 bg-slate-950 border border-slate-850 p-1.5 rounded-xl shrink-0 overflow-x-auto max-w-full">
           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 hidden sm:inline">Range:</span>
           {[
             { id: 'today', label: 'Today' },

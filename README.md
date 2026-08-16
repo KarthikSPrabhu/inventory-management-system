@@ -592,10 +592,40 @@ We resolved UI layout alignment issues, corrected physical storage drawer image 
 * Converts uploaded images to Base64 data strings stored directly in MongoDB Atlas. Images persist across browser refreshes, server restarts, and cloud deployments while existing image URLs continue to display seamlessly.
 
 ### 4. Persistent Buy List Feature
-* **Navigation**: Added `Buy List` to header navigation (`Inventory`, `Projects`, `History`, `Analytics`, `Buy List`).
-* **Database Model**: Created `BuyListItem` schema in [`backend/src/models/BuyListItem.js`](file:///d:/Inventory-Management-System/backend/src/models/BuyListItem.js) (`name`, `quantityNeeded`, `note`, `status` enum `['NEEDED', 'BOUGHT']`).
-* **REST Endpoints**: Implemented `/api/buy-list` CRUD endpoints in [`backend/src/controllers/buyListController.js`](file:///d:/Inventory-Management-System/backend/src/controllers/buyListController.js).
-* **Interactive UI**: Built [`BuyListPage.jsx`](file:///d:/Inventory-Management-System/frontend/src/pages/BuyListPage.jsx) and [`AddBuyListModal.jsx`](file:///d:/Inventory-Management-System/frontend/src/components/buylist/AddBuyListModal.jsx) featuring search filters, status toggle (`[ ✓ Mark as Bought ]` / `[ Mark as Needed ]`), delete confirmation modals, and real-time inventory stock lookups (`Inventory stock: X units available`).
+---
+
+## Phase 16: Mobile-First Responsive Experience
+
+We transformed the existing application into a fully mobile-responsive web application that feels comfortable and natural on smartphones (390px, 412px) while preserving 100% desktop functionality (1366px, 1920px).
+
+### 1. Mobile Navigation Bar & Drawer Menu
+* Introduced a mobile header with hamburger menu button (`[☰] Antigravity Tracker`) visible on screens `< md`.
+* Tapping the hamburger button opens a smooth slide-down mobile menu displaying links to `Inventory`, `Projects`, `History`, `Analytics`, `Buy List`, User Profile & `Sign Out`.
+* The mobile menu closes automatically upon route navigation or backdrop tap.
+* Desktop top navigation remains unchanged on `md:` and `lg:` screens.
+
+### 2. Responsive Layout Reflow & Physical Storage Rack
+* **Inventory Workspace**: Reflows vertically on mobile: Header $\rightarrow$ `+ Add Item` $\rightarrow$ Search $\rightarrow$ Catalog Cards $\rightarrow$ Physical Storage Visualizer $\rightarrow$ Location Panel.
+* **Storage Visualizer**: Aspect-ratio locked (`375:666`) container scales smoothly (`h-[360px] sm:h-[460px] lg:h-[500px]`), keeping physical Box 1..6 click target mapping 100% interactive and accurate across phone viewports.
+
+### 3. Responsive Touch Targets & Cards Grid
+* **Touch Targets**: All interactive elements (buttons, drop-downs, drawers, form inputs) comply with mobile touch guidelines ($\ge 44\text{px}$ touch height).
+* **Catalog Grid**: 1-column layout on phones (`grid-cols-1`), 2-column layout on tablets (`sm:grid-cols-2`), 3-column layout on large desktops (`xl:grid-cols-3`).
+
+### 4. Responsive Pages & Workflows
+* **History**: Responsive card stack view for mobile (`block md:hidden`), preserving the full table for desktop (`hidden md:table`). Zero horizontal page scrolling.
+* **Analytics**: Responsive KPI cards and stacked timeline charts using `ResponsiveContainer`.
+* **Projects & Buy List**: 1-column mobile card stack with full-width action buttons.
+* **Modals**: All modals (`TakeItemModal`, `AddStockModal`, `CreateProjectModal`, `AddBuyListModal`) feature internal scroll bounds (`max-h-[90vh] overflow-y-auto`) and mobile padding (`p-4 sm:p-6`).
+
+### 5. Screen Sizes Tested & Verified
+* `390 × 844` (iPhone 12/13/14)
+* `412 × 915` (Large Android / Pixel)
+* `768 × 1024` (Tablet)
+* `1024 × 768` (Tablet Landscape)
+* `1366 × 768` (Standard Desktop)
+* `1920 × 1080` (Large Monitor)
+
 
 
 

@@ -45,10 +45,10 @@ function StorageVisualizer({ selectedDrawer = 0, location = null, onSelectDrawer
       </div>
 
       {/* Main Hero Container */}
-      <div className="relative w-full max-w-xl min-h-[480px] sm:min-h-[540px] bg-slate-950/70 border border-slate-800/80 rounded-2xl p-4 flex flex-col items-center justify-center overflow-hidden shadow-2xl backdrop-blur-sm">
+      <div className="relative w-full max-w-xl min-h-[380px] sm:min-h-[500px] bg-slate-950/70 border border-slate-800/80 rounded-2xl p-3 sm:p-4 flex flex-col items-center justify-center overflow-hidden shadow-2xl backdrop-blur-sm">
         
         {/* Storage Rack Image Wrapper — Locked to Rack Aspect Ratio 375:666 */}
-        <div className="relative h-[450px] sm:h-[500px] aspect-[375/666] flex items-center justify-center">
+        <div className="relative h-[360px] sm:h-[460px] lg:h-[500px] aspect-[375/666] flex items-center justify-center">
           <img
             src={targetImage}
             alt="Physical Storage Rack"
