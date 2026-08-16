@@ -1,4 +1,5 @@
 const InventoryUsage = require('../models/InventoryUsage');
+const InventoryStockIn = require('../models/InventoryStockIn');
 const InventoryItem = require('../models/InventoryItem');
 const Project = require('../models/Project');
 const mongoose = require('mongoose');
@@ -112,21 +113,25 @@ exports.createUsage = async (req, res) => {
   }
 };
 
-// @desc    Get all inventory withdrawal records with filtering & pagination
+// @desc    Get all inventory activity records (stock-in + stock-out) with filtering & pagination
 // @route   GET /api/usage
 // @access  Public
 exports.getAllUsage = async (req, res) => {
   try {
-    const { page = 1, limit = 20, search = '', itemId = '', projectId = '', dateRange = 'all' } = req.query;
+    const {
+      page = 1,
+      limit = 20,
+      search = '',
+      itemId = '',
+      projectId = '',
+      dateRange = 'all',
+      activityType = 'all' // 'all', 'stock_in', 'usage'
+    } = req.query;
 
-    const query = {};
+    const baseQuery = {};
 
     if (itemId && isValidId(itemId)) {
-      query.item = itemId;
-    }
-
-    if (projectId && isValidId(projectId)) {
-      query.project = projectId;
+      baseQuery.item = itemId;
     }
 
     if (dateRange && dateRange !== 'all') {
@@ -140,62 +145,119 @@ exports.getAllUsage = async (req, res) => {
         startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       }
       if (startDate) {
-        query.createdAt = { $gte: startDate };
+        baseQuery.createdAt = { $gte: startDate };
       }
     }
 
     const trimmedSearch = String(search).trim();
+    let matchingItemIds = null;
+    let matchingProjectIds = null;
+
     if (trimmedSearch) {
       const searchRegex = new RegExp(trimmedSearch.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i');
 
       const matchingItems = await InventoryItem.find({ name: searchRegex }).select('_id');
-      const matchingItemIds = matchingItems.map(i => i._id);
+      matchingItemIds = matchingItems.map(i => i._id);
 
       const matchingProjects = await Project.find({ name: searchRegex }).select('_id');
-      const matchingProjectIds = matchingProjects.map(p => p._id);
-
-      const searchConditions = [
-        { location: searchRegex },
-        { notes: searchRegex },
-        { item: { $in: matchingItemIds } },
-        { project: { $in: matchingProjectIds } }
-      ];
-
-      query.$or = searchConditions;
+      matchingProjectIds = matchingProjects.map(p => p._id);
     }
 
-    const total = await InventoryUsage.countDocuments(query);
+    let usagesList = [];
+    let stockInsList = [];
 
+    // Fetch InventoryUsage records if activityType is 'all' or 'usage'
+    if (activityType === 'all' || activityType === 'usage') {
+      const usageQuery = { ...baseQuery };
+      if (projectId && isValidId(projectId)) {
+        usageQuery.project = projectId;
+      }
+
+      if (trimmedSearch) {
+        const searchRegex = new RegExp(trimmedSearch.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i');
+        usageQuery.$or = [
+          { location: searchRegex },
+          { notes: searchRegex },
+          { item: { $in: matchingItemIds } },
+          { project: { $in: matchingProjectIds } }
+        ];
+      }
+
+      const usages = await InventoryUsage.find(usageQuery)
+        .populate('item', 'name image location quantity')
+        .populate('project', 'name status')
+        .sort({ createdAt: -1 });
+
+      usagesList = usages.map(u => ({
+        _id: u._id,
+        type: 'usage',
+        item: u.item,
+        project: u.project,
+        quantity: u.quantity,
+        location: u.location,
+        notes: u.notes,
+        createdAt: u.createdAt
+      }));
+    }
+
+    // Fetch InventoryStockIn records if activityType is 'all' or 'stock_in' (Stock In records do not have projects)
+    if ((activityType === 'all' || activityType === 'stock_in') && (!projectId || !isValidId(projectId))) {
+      const stockInQuery = { ...baseQuery };
+
+      if (trimmedSearch) {
+        const searchRegex = new RegExp(trimmedSearch.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i');
+        stockInQuery.$or = [
+          { reason: searchRegex },
+          { notes: searchRegex },
+          { item: { $in: matchingItemIds } }
+        ];
+      }
+
+      const stockIns = await InventoryStockIn.find(stockInQuery)
+        .populate('item', 'name image location quantity')
+        .sort({ createdAt: -1 });
+
+      stockInsList = stockIns.map(s => ({
+        _id: s._id,
+        type: 'stock_in',
+        item: s.item,
+        quantity: s.quantity,
+        reason: s.reason,
+        notes: s.notes,
+        createdAt: s.createdAt
+      }));
+    }
+
+    // Combine & Sort by createdAt DESC
+    const combined = [...usagesList, ...stockInsList];
+    combined.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    const total = combined.length;
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.max(1, parseInt(limit, 10) || 20);
     const skip = (pageNum - 1) * limitNum;
     const totalPages = Math.ceil(total / limitNum) || 1;
 
-    const usages = await InventoryUsage.find(query)
-      .populate('item', 'name image location quantity')
-      .populate('project', 'name status')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limitNum);
+    const paginatedData = combined.slice(skip, skip + limitNum);
 
     res.status(200).json({
       success: true,
-      count: usages.length,
+      count: paginatedData.length,
       total,
       page: pageNum,
       totalPages,
-      data: usages
+      data: paginatedData
     });
   } catch (error) {
-    console.error('Get All Usage Error:', error);
+    console.error('Get All Usage / Activity Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Unable to retrieve usage records.'
+      message: 'Unable to retrieve activity records.'
     });
   }
 };
 
-// @desc    Get usage records and item summary for a specific inventory item
+// @desc    Get activity records and item summary for a specific inventory item
 // @route   GET /api/usage/item/:itemId
 // @access  Public
 exports.getItemUsage = async (req, res) => {
@@ -217,37 +279,67 @@ exports.getItemUsage = async (req, res) => {
       });
     }
 
-    const usages = await InventoryUsage.find({ item: itemId })
-      .populate('item', 'name image location quantity')
-      .populate('project', 'name status')
-      .sort({ createdAt: -1 });
+    const [usages, stockIns] = await Promise.all([
+      InventoryUsage.find({ item: itemId })
+        .populate('item', 'name image location quantity')
+        .populate('project', 'name status')
+        .sort({ createdAt: -1 }),
+      InventoryStockIn.find({ item: itemId })
+        .populate('item', 'name image location quantity')
+        .sort({ createdAt: -1 })
+    ]);
 
     let totalUnitsUsed = 0;
     const uniqueProjects = new Set();
-
-    usages.forEach((rec) => {
-      totalUnitsUsed += Number(rec.quantity) || 0;
-      if (rec.project) {
-        const pId = rec.project._id ? String(rec.project._id) : String(rec.project);
-        uniqueProjects.add(pId);
+    const usageRecords = usages.map(u => {
+      totalUnitsUsed += Number(u.quantity) || 0;
+      if (u.project) {
+        uniqueProjects.add(u.project._id ? String(u.project._id) : String(u.project));
       }
+      return {
+        _id: u._id,
+        type: 'usage',
+        item: u.item,
+        project: u.project,
+        quantity: u.quantity,
+        location: u.location,
+        notes: u.notes,
+        createdAt: u.createdAt
+      };
     });
+
+    let totalUnitsAdded = 0;
+    const stockInRecords = stockIns.map(s => {
+      totalUnitsAdded += Number(s.quantity) || 0;
+      return {
+        _id: s._id,
+        type: 'stock_in',
+        item: s.item,
+        quantity: s.quantity,
+        reason: s.reason,
+        notes: s.notes,
+        createdAt: s.createdAt
+      };
+    });
+
+    const combinedActivity = [...usageRecords, ...stockInRecords];
+    combinedActivity.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     res.status(200).json({
       success: true,
       summary: {
         currentStock: item.quantity,
+        totalAdded: totalUnitsAdded,
         totalUnitsUsed,
         projectsCount: uniqueProjects.size
       },
-      data: usages
+      data: combinedActivity
     });
   } catch (error) {
     console.error('Get Item Usage Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Unable to retrieve item usage records.'
+      message: 'Unable to retrieve item activity records.'
     });
   }
 };
-

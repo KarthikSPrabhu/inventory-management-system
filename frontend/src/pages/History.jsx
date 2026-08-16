@@ -3,13 +3,14 @@ import { Link } from 'react-router-dom';
 import { getUsageRecords, getItems, getProjects } from '../services/inventoryService';
 
 function History() {
-  const [usageRecords, setUsageRecords] = useState([]);
+  const [historyRecords, setHistoryRecords] = useState([]);
   const [items, setItems] = useState([]);
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   // Filter States
+  const [activityType, setActivityType] = useState('all'); // 'all', 'stock_in', 'usage'
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedItem, setSelectedItem] = useState('');
   const [selectedProject, setSelectedProject] = useState('');
@@ -35,7 +36,7 @@ function History() {
     fetchOptions();
   }, []);
 
-  // Fetch usage records whenever filters or page change
+  // Fetch history records whenever filters or page change
   const fetchHistory = async () => {
     setLoading(true);
     setError('');
@@ -43,6 +44,7 @@ function History() {
       const response = await getUsageRecords({
         page,
         limit,
+        activityType,
         search: searchTerm,
         itemId: selectedItem,
         projectId: selectedProject,
@@ -50,7 +52,7 @@ function History() {
       });
 
       if (response.success) {
-        setUsageRecords(response.data || []);
+        setHistoryRecords(response.data || []);
         setTotalPages(response.totalPages || 1);
         setTotalCount(response.total || 0);
       } else {
@@ -66,9 +68,9 @@ function History() {
 
   useEffect(() => {
     fetchHistory();
-  }, [page, selectedItem, selectedProject, dateRange]);
+  }, [page, activityType, selectedItem, selectedProject, dateRange]);
 
-  // Handle Search submit / debounced trigger
+  // Handle Search submit
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     setPage(1);
@@ -76,6 +78,7 @@ function History() {
   };
 
   const handleResetFilters = () => {
+    setActivityType('all');
     setSearchTerm('');
     setSelectedItem('');
     setSelectedProject('');
@@ -104,11 +107,11 @@ function History() {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></span>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400">Activity Log</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400">Audit & Activity Log</span>
           </div>
           <h2 className="text-2xl font-black text-white tracking-tight">RECENT ACTIVITY</h2>
           <p className="text-xs text-slate-400">
-            Track inventory withdrawals, location source, quantity changes, and associated project assignments.
+            Track all stock additions, withdrawals, locations, project assignments, and notes.
           </p>
         </div>
 
@@ -128,7 +131,7 @@ function History() {
 
       {/* Filter Control Bar */}
       <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-4 shadow-md">
-        <form onSubmit={handleSearchSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <form onSubmit={handleSearchSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
           {/* Search Box */}
           <div className="lg:col-span-2 relative">
             <input
@@ -147,6 +150,22 @@ function History() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </button>
+          </div>
+
+          {/* Activity Type Dropdown (Stock In vs Stock Out vs All) */}
+          <div>
+            <select
+              value={activityType}
+              onChange={(e) => {
+                setActivityType(e.target.value);
+                setPage(1);
+              }}
+              className="w-full bg-slate-950 border border-slate-800 text-xs font-bold text-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-indigo-500 cursor-pointer"
+            >
+              <option value="all">All Activity</option>
+              <option value="stock_in">🟢 Stock In</option>
+              <option value="usage">🔴 Stock Out</option>
+            </select>
           </div>
 
           {/* Item Dropdown */}
@@ -206,10 +225,19 @@ function History() {
         </form>
 
         {/* Active Filters Pill Bar if any filter set */}
-        {(searchTerm || selectedItem || selectedProject || dateRange !== 'all') && (
+        {(searchTerm || activityType !== 'all' || selectedItem || selectedProject || dateRange !== 'all') && (
           <div className="flex items-center justify-between pt-2 border-t border-slate-850 text-xs">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[10px] uppercase font-extrabold text-slate-500">Active Filters:</span>
+              {activityType !== 'all' && (
+                <span className={`px-2.5 py-0.5 rounded-lg text-[11px] font-extrabold uppercase border ${
+                  activityType === 'stock_in' 
+                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                    : 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+                }`}>
+                  {activityType === 'stock_in' ? '🟢 Stock In' : '🔴 Stock Out'}
+                </span>
+              )}
               {searchTerm && (
                 <span className="bg-indigo-600/15 text-indigo-300 border border-indigo-500/30 px-2.5 py-0.5 rounded-lg text-[11px] font-semibold">
                   Search: "{searchTerm}"
@@ -249,7 +277,7 @@ function History() {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
           </svg>
-          <span className="text-xs text-slate-400 font-medium">Loading history...</span>
+          <span className="text-xs text-slate-400 font-medium">Loading activity history...</span>
         </div>
       ) : error ? (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-12 text-center flex flex-col items-center justify-center space-y-4 max-w-lg mx-auto">
@@ -269,7 +297,7 @@ function History() {
             Try Again
           </button>
         </div>
-      ) : usageRecords.length === 0 ? (
+      ) : historyRecords.length === 0 ? (
         <div className="bg-slate-900 border border-slate-800/80 rounded-2xl p-16 text-center flex flex-col items-center justify-center space-y-3">
           <div className="h-14 w-14 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center text-slate-500">
             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -278,29 +306,32 @@ function History() {
           </div>
           <h4 className="text-base font-extrabold text-white uppercase tracking-wider">NO ACTIVITY YET</h4>
           <p className="text-xs text-slate-400 max-w-md">
-            Once you take your first item, activity will appear automatically.
+            Once you add stock or withdraw items, activity records will appear here automatically.
           </p>
         </div>
       ) : (
         <div className="space-y-4">
           {/* History Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {usageRecords.map((record) => {
+            {historyRecords.map((record) => {
+              const isStockIn = record.type === 'stock_in';
               const itemName = record.item?.name || 'Inventory Item';
               const itemId = record.item?._id;
               const projectName = record.project?.name || 'Unassigned Project';
               const projectId = record.project?._id;
-              const locationCode = record.location || 'N/A';
+              const locationCode = record.location || record.item?.location?.code || 'N/A';
               const qty = record.quantity || 0;
               const formattedDate = formatDate(record.createdAt);
 
               return (
                 <div
                   key={record._id}
-                  className="bg-slate-900 border border-slate-800/90 rounded-2xl p-5 hover:border-slate-700 transition-all shadow-md flex flex-col justify-between space-y-4"
+                  className={`bg-slate-900 border-2 rounded-2xl p-5 hover:border-slate-700 transition-all shadow-md flex flex-col justify-between space-y-4 ${
+                    isStockIn ? 'border-emerald-500/20' : 'border-slate-800/90'
+                  }`}
                 >
                   <div className="space-y-3">
-                    {/* Header Row: Item Name & Quantity Taken */}
+                    {/* Header Row: Item Name & Quantity Badge */}
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         {itemId ? (
@@ -313,29 +344,47 @@ function History() {
                         ) : (
                           <h4 className="text-base font-extrabold text-white line-clamp-1">{itemName}</h4>
                         )}
+
                         <span className="font-mono text-xs font-bold text-slate-400 mt-1 block">
                           📍 {locationCode}
                         </span>
                       </div>
 
-                      {/* Quantity Badge */}
-                      <span className="bg-rose-500/10 text-rose-400 border border-rose-500/25 px-3 py-1 rounded-xl text-xs font-black shrink-0 font-mono">
-                        −{qty} {qty === 1 ? 'unit' : 'units'}
+                      {/* Quantity & Type Badge */}
+                      <span className={`px-3 py-1 rounded-xl text-xs font-black shrink-0 font-mono border ${
+                        isStockIn
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25'
+                          : 'bg-rose-500/10 text-rose-400 border-rose-500/25'
+                      }`}>
+                        {isStockIn ? `+${qty}` : `−${qty}`} {qty === 1 ? 'unit' : 'units'}
                       </span>
                     </div>
 
-                    {/* Project Row */}
+                    {/* Transaction Details (Reason for Stock In vs Project for Stock Out) */}
                     <div className="bg-slate-950/60 border border-slate-850 p-3 rounded-xl flex items-center justify-between text-xs">
-                      <span className="text-slate-500 font-semibold">Project:</span>
-                      {projectId ? (
-                        <Link
-                          to={`/projects/${projectId}`}
-                          className="font-bold text-indigo-400 hover:underline"
-                        >
-                          {projectName}
-                        </Link>
+                      {isStockIn ? (
+                        <>
+                          <span className="text-slate-500 font-semibold flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400"></span> Stock Added:
+                          </span>
+                          <span className="font-bold text-emerald-400">Reason: {record.reason}</span>
+                        </>
                       ) : (
-                        <span className="font-bold text-slate-300">{projectName}</span>
+                        <>
+                          <span className="text-slate-500 font-semibold flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-indigo-400"></span> Project:
+                          </span>
+                          {projectId ? (
+                            <Link
+                              to={`/projects/${projectId}`}
+                              className="font-bold text-indigo-400 hover:underline"
+                            >
+                              {projectName}
+                            </Link>
+                          ) : (
+                            <span className="font-bold text-slate-300">{projectName}</span>
+                          )}
+                        </>
                       )}
                     </div>
 

@@ -68,7 +68,24 @@ export const createUsageRecord = async (usageData) => {
   return data;
 };
 
-// Fetch all usage records with filtering & pagination (Phase 10)
+// Record inventory item stock-in / restocking (Phase 11)
+export const createStockInRecord = async (stockInData) => {
+  const response = await fetch('/api/stock-in', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(stockInData),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.message || 'Unable to add stock. Please try again.');
+  }
+  return data;
+};
+
+// Fetch all usage/activity records with filtering & pagination (Phase 10 & 11)
 export const getUsageRecords = async (params = {}) => {
   const query = new URLSearchParams();
   if (params.page) query.append('page', params.page);
@@ -77,6 +94,7 @@ export const getUsageRecords = async (params = {}) => {
   if (params.itemId) query.append('itemId', params.itemId);
   if (params.projectId) query.append('projectId', params.projectId);
   if (params.dateRange) query.append('dateRange', params.dateRange);
+  if (params.activityType) query.append('activityType', params.activityType);
 
   const queryString = query.toString();
   const url = queryString ? `/api/usage?${queryString}` : '/api/usage';

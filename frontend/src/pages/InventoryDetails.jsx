@@ -2,13 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getInventoryItemById, getItemUsageRecords } from '../services/inventoryService';
 import LocationDisplay from '../components/inventory/LocationDisplay';
+import AddStockModal from '../components/inventory/AddStockModal';
 
 function InventoryDetails() {
   const { id } = useParams();
   const [item, setItem] = useState(null);
-  const [usageHistory, setUsageHistory] = useState([]);
+  const [activityHistory, setActivityHistory] = useState([]);
   const [usageSummary, setUsageSummary] = useState({
     currentStock: 0,
+    totalAdded: 0,
     totalUnitsUsed: 0,
     projectsCount: 0
   });
@@ -16,6 +18,10 @@ function InventoryDetails() {
   const [usageLoading, setUsageLoading] = useState(true);
   const [error, setError] = useState('');
   const [usageError, setUsageError] = useState('');
+
+  // Add Stock Modal State
+  const [isAddStockOpen, setIsAddStockOpen] = useState(false);
+  const [flashMessage, setFlashMessage] = useState('');
 
   const fetchItemDetails = async () => {
     setLoading(true);
@@ -41,29 +47,35 @@ function InventoryDetails() {
     try {
       const response = await getItemUsageRecords(id);
       if (response.success) {
-        setUsageHistory(response.data || []);
+        setActivityHistory(response.data || []);
         if (response.summary) {
           setUsageSummary(response.summary);
         } else {
-          // Fallback calculation if summary not directly in response
-          let total = 0;
+          // Fallback calculation
+          let totalUsed = 0;
+          let totalAdded = 0;
           const projects = new Set();
           (response.data || []).forEach(r => {
-            total += Number(r.quantity) || 0;
-            if (r.project) projects.add(r.project._id || r.project);
+            if (r.type === 'stock_in') {
+              totalAdded += Number(r.quantity) || 0;
+            } else {
+              totalUsed += Number(r.quantity) || 0;
+              if (r.project) projects.add(r.project._id || r.project);
+            }
           });
           setUsageSummary({
             currentStock: item ? item.quantity : 0,
-            totalUnitsUsed: total,
+            totalAdded,
+            totalUnitsUsed: totalUsed,
             projectsCount: projects.size
           });
         }
       } else {
-        throw new Error(response.message || 'Unable to load usage history.');
+        throw new Error(response.message || 'Unable to load activity history.');
       }
     } catch (err) {
       console.error('Fetch item usage error:', err);
-      setUsageError(err.message || 'Unable to load item usage.');
+      setUsageError(err.message || 'Unable to load item activity.');
     } finally {
       setUsageLoading(false);
     }
@@ -75,6 +87,13 @@ function InventoryDetails() {
       fetchItemUsage();
     }
   }, [id]);
+
+  const handleAddStockSuccess = (msg) => {
+    setFlashMessage(msg);
+    fetchItemDetails();
+    fetchItemUsage();
+    setTimeout(() => setFlashMessage(''), 5000);
+  };
 
   if (loading) {
     return (
@@ -145,8 +164,8 @@ function InventoryDetails() {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto animate-fadeIn pb-12">
-      {/* Navigation link */}
-      <div>
+      {/* Navigation link & Action */}
+      <div className="flex items-center justify-between">
         <Link
           to="/inventory"
           className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-indigo-400 transition-colors"
@@ -156,9 +175,29 @@ function InventoryDetails() {
           </svg>
           <span>Back to Catalog</span>
         </Link>
+
+        <button
+          onClick={() => setIsAddStockOpen(true)}
+          className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs px-4 py-2 rounded-xl transition-all shadow-md cursor-pointer"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" />
+          </svg>
+          <span>+ Add Stock</span>
+        </button>
       </div>
 
-      {/* Item Summary Cards (Requirement 10) */}
+      {/* Flash Success Notification */}
+      {flashMessage && (
+        <div className="bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 p-4 rounded-xl text-xs flex gap-3 items-center">
+          <svg className="w-5 h-5 shrink-0 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div className="font-semibold">{flashMessage}</div>
+        </div>
+      )}
+
+      {/* Item Summary Cards (Requirement 17) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-slate-900 border border-slate-800 p-4 sm:p-5 rounded-2xl shadow-md">
           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Current Stock</span>
@@ -169,19 +208,19 @@ function InventoryDetails() {
         </div>
 
         <div className="bg-slate-900 border border-slate-800 p-4 sm:p-5 rounded-2xl shadow-md">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Used</span>
-          <span className="text-2xl font-black text-indigo-400 font-mono mt-1 block">
-            {usageSummary.totalUnitsUsed}
+          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Added</span>
+          <span className="text-2xl font-black text-emerald-400 font-mono mt-1 block">
+            {usageSummary.totalAdded}
           </span>
-          <span className="text-[11px] text-slate-400 mt-1 block">Total units ever withdrawn</span>
+          <span className="text-[11px] text-slate-400 mt-1 block">Total units ever restocked</span>
         </div>
 
         <div className="bg-slate-900 border border-slate-800 p-4 sm:p-5 rounded-2xl shadow-md">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Projects</span>
-          <span className="text-2xl font-black text-purple-400 font-mono mt-1 block">
-            {usageSummary.projectsCount}
+          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Used</span>
+          <span className="text-2xl font-black text-rose-400 font-mono mt-1 block">
+            {usageSummary.totalUnitsUsed}
           </span>
-          <span className="text-[11px] text-slate-400 mt-1 block">Projects using this item</span>
+          <span className="text-[11px] text-slate-400 mt-1 block">Total units ever withdrawn</span>
         </div>
       </div>
 
@@ -242,9 +281,19 @@ function InventoryDetails() {
 
             {/* Action buttons */}
             <div className="pt-4 border-t border-slate-850 flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => setIsAddStockOpen(true)}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl transition-all text-center flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>+ Add Stock</span>
+              </button>
+              
               <Link
                 to="/inventory"
-                className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all text-center flex items-center justify-center shadow-md"
+                className="flex-1 bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 font-bold text-xs px-4 py-2.5 rounded-xl transition-all text-center flex items-center justify-center"
               >
                 Back to Inventory Workspace
               </Link>
@@ -258,12 +307,12 @@ function InventoryDetails() {
         </div>
       </div>
 
-      {/* USAGE HISTORY Section (Requirement 7) */}
+      {/* ACTIVITY HISTORY Section (Stock In 🟢 and Stock Out 🔴) */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-6 shadow-lg">
         <div className="flex items-center justify-between border-b border-slate-850 pb-4">
           <div>
-            <h3 className="text-base font-extrabold text-white tracking-tight uppercase">USAGE HISTORY</h3>
-            <p className="text-xs text-slate-400 mt-0.5">Past withdrawal logs recorded for {name}</p>
+            <h3 className="text-base font-extrabold text-white tracking-tight uppercase">ACTIVITY HISTORY</h3>
+            <p className="text-xs text-slate-400 mt-0.5">Chronological log of restocks and withdrawals for {name}</p>
           </div>
           <Link
             to="/history"
@@ -282,7 +331,7 @@ function InventoryDetails() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
-            <span className="text-xs text-slate-400">Loading item usage...</span>
+            <span className="text-xs text-slate-400">Loading item activity...</span>
           </div>
         ) : usageError ? (
           <div className="bg-rose-500/10 border border-rose-500/20 p-4 rounded-xl text-center space-y-2">
@@ -294,16 +343,17 @@ function InventoryDetails() {
               Try Again
             </button>
           </div>
-        ) : usageHistory.length === 0 ? (
+        ) : activityHistory.length === 0 ? (
           <div className="py-8 text-center text-slate-500 text-xs font-medium">
             NO ACTIVITY YET
           </div>
         ) : (
           <div className="space-y-3">
-            {usageHistory.map((rec) => {
+            {activityHistory.map((rec) => {
+              const isStockIn = rec.type === 'stock_in';
               const projName = rec.project?.name || 'Unassigned Project';
               const projId = rec.project?._id;
-              const locationCode = rec.location || 'N/A';
+              const locationCode = rec.location || itemLocation?.code || 'N/A';
 
               return (
                 <div
@@ -312,28 +362,47 @@ function InventoryDetails() {
                 >
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      {projId ? (
-                        <Link
-                          to={`/projects/${projId}`}
-                          className="text-sm font-bold text-white hover:text-indigo-400 transition-colors"
-                        >
-                          {projName}
-                        </Link>
-                      ) : (
-                        <span className="text-sm font-bold text-white">{projName}</span>
-                      )}
-                      <span className="font-mono text-[11px] font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
-                        📍 {locationCode}
+                      <span className={`inline-flex items-center gap-1 text-[11px] font-black uppercase px-2 py-0.5 rounded ${
+                        isStockIn
+                          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                          : 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/30'
+                      }`}>
+                        {isStockIn ? '🟢 Stock Added' : '🔴 Withdrawal'}
                       </span>
+
+                      {isStockIn ? (
+                        <span className="text-xs font-bold text-slate-300">
+                          Reason: <span className="text-white">{rec.reason}</span>
+                        </span>
+                      ) : (
+                        <>
+                          {projId ? (
+                            <Link
+                              to={`/projects/${projId}`}
+                              className="text-xs font-bold text-indigo-400 hover:underline"
+                            >
+                              {projName}
+                            </Link>
+                          ) : (
+                            <span className="text-xs font-bold text-slate-300">{projName}</span>
+                          )}
+                          <span className="font-mono text-[11px] font-bold text-slate-400">
+                            📍 {locationCode}
+                          </span>
+                        </>
+                      )}
                     </div>
+
                     {rec.notes && (
                       <p className="text-xs text-slate-400 italic">"{rec.notes}"</p>
                     )}
                   </div>
 
                   <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0">
-                    <span className="text-xs font-bold text-rose-400 font-mono">
-                      −{rec.quantity} {rec.quantity === 1 ? 'unit' : 'units'}
+                    <span className={`text-xs font-bold font-mono ${
+                      isStockIn ? 'text-emerald-400' : 'text-rose-400'
+                    }`}>
+                      {isStockIn ? `+${rec.quantity}` : `−${rec.quantity}`} {rec.quantity === 1 ? 'unit' : 'units'}
                     </span>
                     <span className="text-xs text-slate-400 font-mono">
                       {formatDate(rec.createdAt)}
@@ -345,6 +414,14 @@ function InventoryDetails() {
           </div>
         )}
       </div>
+
+      {/* Add Stock Modal */}
+      <AddStockModal
+        item={item}
+        isOpen={isAddStockOpen}
+        onClose={() => setIsAddStockOpen(false)}
+        onSuccess={handleAddStockSuccess}
+      />
     </div>
   );
 }

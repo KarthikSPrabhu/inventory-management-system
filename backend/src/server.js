@@ -32,6 +32,10 @@ app.use('/api/usage', usageRoutes);
 const projectRoutes = require('./routes/projectRoutes');
 app.use('/api/projects', projectRoutes);
 
+// Register Stock-In REST routes
+const stockInRoutes = require('./routes/stockInRoutes');
+app.use('/api/stock-in', stockInRoutes);
+
 // Request Logger (simple middleware for beginner readability)
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);

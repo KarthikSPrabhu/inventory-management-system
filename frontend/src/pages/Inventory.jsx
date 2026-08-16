@@ -6,6 +6,7 @@ import InventoryEmptyState from '../components/inventory/InventoryEmptyState';
 import StorageVisualizer from '../components/storage/StorageVisualizer';
 import StorageLocationPanel from '../components/storage/StorageLocationPanel';
 import TakeItemModal from '../components/inventory/TakeItemModal';
+import AddStockModal from '../components/inventory/AddStockModal';
 import { getPhysicalDrawerNumber } from '../config/storageConfig';
 
 // Skeleton Loader Card component
@@ -47,6 +48,10 @@ function Inventory() {
   // Phase 9: Take Item Modal state
   const [takeItemTarget, setTakeItemTarget] = useState(null);
   const [isTakeModalOpen, setIsTakeModalOpen] = useState(false);
+
+  // Phase 11: Add Stock Modal state
+  const [addStockTarget, setAddStockTarget] = useState(null);
+  const [isAddStockModalOpen, setIsAddStockModalOpen] = useState(false);
 
   // Fetch all items from Atlas
   const loadInventory = async () => {
@@ -156,6 +161,24 @@ function Inventory() {
 
   // Handle successful withdrawal
   const handleTakeSuccess = (flashMsg) => {
+    setFlashMessage(flashMsg);
+    loadInventory(); // Refresh items from Atlas to update quantities in real time
+  };
+
+  // Open Add Stock Modal
+  const handleOpenAddStockModal = (item) => {
+    setAddStockTarget(item);
+    setIsAddStockModalOpen(true);
+  };
+
+  // Close Add Stock Modal
+  const handleCloseAddStockModal = () => {
+    setIsAddStockModalOpen(false);
+    setAddStockTarget(null);
+  };
+
+  // Handle successful stock-in
+  const handleAddStockSuccess = (flashMsg) => {
     setFlashMessage(flashMsg);
     loadInventory(); // Refresh items from Atlas to update quantities in real time
   };
@@ -335,6 +358,7 @@ function Inventory() {
                       searchQuery={searchQuery}
                       onLocate={handleLocateItem}
                       onTakeItem={handleOpenTakeModal}
+                      onAddStock={handleOpenAddStockModal}
                       isLocated={isSelected}
                     />
                   );
@@ -372,6 +396,14 @@ function Inventory() {
         isOpen={isTakeModalOpen}
         onClose={handleCloseTakeModal}
         onSuccess={handleTakeSuccess}
+      />
+
+      {/* Phase 11: Add Stock Modal */}
+      <AddStockModal
+        item={addStockTarget}
+        isOpen={isAddStockModalOpen}
+        onClose={handleCloseAddStockModal}
+        onSuccess={handleAddStockSuccess}
       />
     </div>
   );

@@ -427,14 +427,43 @@ Extended `GET /api/usage`, `GET /api/usage/item/:itemId`, and `GET /api/projects
 * **Pagination**: Server-side pagination support (`Showing X–Y of Z`, `[ Previous ]`, `[ Next ]`).
 * **Activity Card Display**: Displays Item Name, Quantity Taken (e.g. `−3 units`), Project Name, Preserved Location (e.g. `📍 A319`), Timestamp, and Notes.
 
-### 4. Extended Item Details View (`/inventory/:id`)
-* **Item Summary Metrics**: Displays **Current Stock**, **Total Units Ever Used**, and **Number of Projects Using Item**.
-* **Usage History Section**: Lists all past withdrawal transactions for that specific item.
+---
 
-### 5. Extended Project Details View (`/projects/:id`)
-* **Project Summary Metrics**: Displays **Different Items** count and **Total Units Used**.
-* **Current Components Section**: Displays aggregated total quantities per item.
-* **Activity Section**: Displays chronological list of raw withdrawal transactions for that project.
+## Phase 11: Inventory Restocking / Stock In
+
+We implemented inventory restocking capabilities, allowing stock additions to existing items, recording stock-in transactions in MongoDB Atlas, and unifying Stock In and Stock Out records in the History & Activity system.
+
+### 1. Data Model (`InventoryStockIn`)
+* **Mongoose Model**: [`backend/src/models/InventoryStockIn.js`](file:///D:/Inventory-Management-System/backend/src/models/InventoryStockIn.js)
+  * `item`: ObjectId reference pointing to `InventoryItem` (required).
+  * `quantity`: Number (required positive integer $\ge 1$).
+  * `reason`: String (required: `Purchased`, `Returned`, `Found`, `Transferred In`, `Correction`, `Other` or custom explanation).
+  * `notes`: String (optional, max 500 characters).
+  * `timestamps`: `createdAt`, `updatedAt`.
+
+### 2. REST API Endpoint (`POST /api/stock-in`)
+* Endpoint mounted at `/api/stock-in` in [`backend/src/routes/stockInRoutes.js`](file:///D:/Inventory-Management-System/backend/src/routes/stockInRoutes.js):
+
+| Method | Endpoint | Description | Request Body | Response |
+| :--- | :--- | :--- | :--- | :--- |
+| **POST** | `/api/stock-in` | Record stock-in & increase inventory quantity | `{ itemId, quantity, reason, notes }` | 201 Created |
+
+* **Validation Rules**:
+  * `quantity`: Must be a positive integer $\ge 1$. Rejects 0, negative numbers, decimals, and non-numeric inputs.
+  * `reason`: Required. Rejects empty string or whitespace. If `"Other"` is selected, custom explanation is required.
+  * `notes`: Optional, maximum 500 characters.
+  * `stale data protection`: Backend reads real-time current stock from MongoDB Atlas before incrementing.
+
+### 3. Integrated Activity History API (`GET /api/usage`)
+* Unified history endpoint merges `InventoryStockIn` (stock added) and `InventoryUsage` (stock withdrawn) into a single normalized chronological timeline (`createdAt DESC`).
+* Supports `activityType` parameter (`all`, `stock_in`, `usage`).
+
+### 4. UI Components & Workflow
+* **Add Stock Button**: `[ + Add Stock ]` button added to inventory cards (`InventoryCard.jsx`), item details (`InventoryDetails.jsx`), and workspace views. Remnants active even for zero-stock items (`0 available`).
+* **Add Stock Modal**: [`frontend/src/components/inventory/AddStockModal.jsx`](file:///D:/Inventory-Management-System/frontend/src/components/inventory/AddStockModal.jsx) features item stock preview, quantity input, predefined reason dropdown, custom explanation field, notes textarea, and double submission protection (`Adding Stock...`).
+* **Unified History Page (`/history`)**: Added **Activity Type** filter dropdown (`[ All Activity ▼ ]`, `[ Stock In ]`, `[ Stock Out ]`). Displays Stock In cards (🟢 `+5 units`, `Stock Added`, `Reason: Purchased`) and Stock Out cards (🔴 `−3 units`, `Project`, `📍 Location Code`).
+* **Item Details View (`/inventory/:id`)**: Displays **Current Stock**, **Total Added**, **Total Used**, and combined chronological activity log.
+
 
 
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 
-function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem }) {
+function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onAddStock }) {
   const { _id, name, image, quantity, location } = item;
   const { section, storageUnit, box, code } = location || {};
   const [copied, setCopied] = useState(false);
@@ -158,8 +158,8 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem }) {
           </div>
         </div>
 
-        {/* Action Buttons Row: TAKE ITEM & DETAILS */}
-        <div className="pt-1 flex items-center gap-2">
+        {/* Action Buttons Row: TAKE ITEM, ADD STOCK & DETAILS */}
+        <div className="pt-1 flex flex-wrap items-center gap-2">
           {onTakeItem ? (
             <button
               onClick={(e) => {
@@ -168,7 +168,7 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem }) {
                 if (quantity > 0) onTakeItem(item);
               }}
               disabled={quantity === 0}
-              className={`flex-1 font-extrabold text-xs px-3 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+              className={`flex-1 font-extrabold text-xs px-2.5 py-2 rounded-xl transition-all flex items-center justify-center gap-1 ${
                 quantity > 0
                   ? 'bg-purple-600/15 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/30 cursor-pointer shadow-sm'
                   : 'bg-slate-950 text-slate-600 border border-slate-850 cursor-not-allowed opacity-50'
@@ -177,14 +177,30 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem }) {
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M20 12H4m8-8l-8 8 8 8" />
               </svg>
-              <span>TAKE ITEM</span>
+              <span>TAKE</span>
+            </button>
+          ) : null}
+
+          {onAddStock ? (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onAddStock(item);
+              }}
+              className="flex-1 bg-emerald-600/15 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/30 font-extrabold text-xs px-2.5 py-2 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer shadow-sm"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
+              </svg>
+              <span>+ STOCK</span>
             </button>
           ) : null}
 
           <Link
             to={`/inventory/${_id}`}
             onClick={(e) => e.stopPropagation()}
-            className="flex-1 bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-350 hover:text-white font-bold text-xs px-3 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1"
+            className="flex-1 bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-350 hover:text-white font-bold text-xs px-2.5 py-2 rounded-xl transition-all flex items-center justify-center gap-1 text-center"
           >
             <span>Details</span>
             <svg className="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
