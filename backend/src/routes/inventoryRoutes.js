@@ -8,15 +8,17 @@ const {
   deleteInventoryItem
 } = require('../controllers/inventoryController');
 
-// Map endpoints for collection operations
-router.route('/')
-  .post(createInventoryItem)
-  .get(getInventoryItems);
+const { requireAuth, requireRole } = require('../middleware/authMiddleware');
 
-// Map endpoints for single item operations
+// Collection operations: GET requires authentication (admin & member), POST requires admin role
+router.route('/')
+  .get(requireAuth, getInventoryItems)
+  .post(requireAuth, requireRole('admin'), createInventoryItem);
+
+// Single item operations: GET requires authentication, PUT/DELETE require admin role
 router.route('/:id')
-  .get(getInventoryItemById)
-  .put(updateInventoryItem)
-  .delete(deleteInventoryItem);
+  .get(requireAuth, getInventoryItemById)
+  .put(requireAuth, requireRole('admin'), updateInventoryItem)
+  .delete(requireAuth, requireRole('admin'), deleteInventoryItem);
 
 module.exports = router;

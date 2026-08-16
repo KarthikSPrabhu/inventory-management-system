@@ -9,20 +9,21 @@ const {
   deleteProject,
   getProjectUsage
 } = require('../controllers/projectController');
+const { requireAuth, requireRole } = require('../middleware/authMiddleware');
 
 router.route('/')
-  .post(createProject)
-  .get(getProjects);
+  .get(requireAuth, getProjects)
+  .post(requireAuth, requireRole('admin'), createProject);
 
 router.route('/suggestions')
-  .get(getProjectSuggestions);
+  .get(requireAuth, getProjectSuggestions);
 
 router.route('/:id')
-  .get(getProjectById)
-  .patch(updateProject)
-  .delete(deleteProject);
+  .get(requireAuth, getProjectById)
+  .patch(requireAuth, requireRole('admin'), updateProject)
+  .delete(requireAuth, requireRole('admin'), deleteProject);
 
 router.route('/:id/usage')
-  .get(getProjectUsage);
+  .get(requireAuth, getProjectUsage);
 
 module.exports = router;

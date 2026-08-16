@@ -5,12 +5,14 @@ const {
   getAllUsage,
   getItemUsage
 } = require('../controllers/usageController');
+const { requireAuth } = require('../middleware/authMiddleware');
 
+// Usage / Withdrawal routes require authentication (available to both Admin and Member)
 router.route('/')
-  .post(createUsage)
-  .get(getAllUsage);
+  .post(requireAuth, createUsage)
+  .get(requireAuth, getAllUsage);
 
 router.route('/item/:itemId')
-  .get(getItemUsage);
+  .get(requireAuth, getItemUsage);
 
 module.exports = router;

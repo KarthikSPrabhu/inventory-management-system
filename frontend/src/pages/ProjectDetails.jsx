@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getProjectUsage, updateProject, deleteProject } from '../services/inventoryService';
+import { useAuth } from '../context/AuthContext';
 
 function ProjectDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const [projectData, setProjectData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -115,37 +117,22 @@ function ProjectDetails() {
       <div className="flex items-center justify-between">
         <Link
           to="/projects"
-          className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white transition-colors"
+          className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-indigo-400 transition-colors"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          <span>Back to Projects</span>
+          &larr; Back to Projects
         </Link>
 
-        {/* Delete Project Action Button */}
-        <button
-          onClick={handleDeleteProject}
-          disabled={deleting}
-          className="inline-flex items-center gap-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white border border-rose-500/25 hover:border-transparent font-bold text-xs px-3.5 py-2 rounded-xl transition-all shadow-sm cursor-pointer"
-        >
-          {deleting ? (
-            <>
-              <svg className="w-3.5 h-3.5 animate-spin text-white" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              <span>Deleting...</span>
-            </>
-          ) : (
-            <>
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              <span>Delete Project</span>
-            </>
-          )}
-        </button>
+        {isAdmin && (
+          <button
+            onClick={handleDeleteProject}
+            className="inline-flex items-center gap-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white border border-rose-500/25 hover:border-transparent font-bold text-xs px-3.5 py-2 rounded-xl transition-all shadow-sm cursor-pointer"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            <span>Delete Project</span>
+          </button>
+        )}
       </div>
 
       {/* Project Banner Header */}
@@ -166,19 +153,21 @@ function ProjectDetails() {
           </div>
 
           {/* Status Switcher Dropdown */}
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Status:</span>
-            <select
-              value={project.status}
-              onChange={(e) => handleStatusChange(e.target.value)}
-              disabled={updatingStatus}
-              className="bg-slate-950 border border-slate-800 text-xs font-bold text-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500 cursor-pointer"
-            >
-              <option value="active">Active</option>
-              <option value="completed">Completed</option>
-              <option value="archived">Archived</option>
-            </select>
-          </div>
+          {isAdmin ? (
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Status:</span>
+              <select
+                value={project.status}
+                onChange={(e) => handleStatusChange(e.target.value)}
+                disabled={updatingStatus}
+                className="bg-slate-950 border border-slate-800 text-xs font-bold text-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500 cursor-pointer"
+              >
+                <option value="active">Active</option>
+                <option value="completed">Completed</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+          ) : null}
         </div>
 
         {/* Summary Metrics Bar (Requirement 9) */}

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { checkHealth } from '../../services/inventoryService';
+import { useAuth } from '../../context/AuthContext';
 
 function Layout({ children }) {
   const location = useLocation();
+  const { user, isAuthenticated, logout } = useAuth();
   const [isOnline, setIsOnline] = useState(null);
 
   useEffect(() => {
@@ -24,9 +26,14 @@ function Layout({ children }) {
   const isHistoryActive = location.pathname.startsWith('/history');
   const isAnalyticsActive = location.pathname.startsWith('/analytics');
 
+  // If on login page, don't show full header layout
+  if (location.pathname === '/login') {
+    return <div className="min-h-screen bg-slate-950 text-slate-100 font-sans">{children}</div>;
+  }
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col">
-      {/* Top Header Bar with Antigravity Tracker Branding, Navigation Tabs & Connection Status */}
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col select-none">
+      {/* Top Header Bar with Antigravity Tracker Branding, Navigation Tabs, User Profile & Connection Status */}
       <header className="h-16 border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-50 flex items-center justify-between px-6">
         {/* Brand Logo & Title */}
         <div className="flex items-center gap-6">
@@ -106,25 +113,58 @@ function Layout({ children }) {
           </nav>
         </div>
 
-        {/* Connection Status Indicator */}
-        <div className="flex items-center gap-2">
-          {isOnline === null ? (
-            <span className="flex items-center gap-1.5 bg-amber-500/10 text-amber-400 border border-amber-500/25 px-3 py-1 rounded-full text-xs font-semibold">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Testing...
-            </span>
-          ) : isOnline ? (
-            <span className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 px-3 py-1 rounded-full text-xs font-semibold">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-450 animate-pulse"></span> API Online
-            </span>
-          ) : (
-            <span className="flex items-center gap-1.5 bg-rose-500/10 text-rose-400 border border-rose-500/25 px-3 py-1 rounded-full text-xs font-semibold animate-pulse">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span> API Offline
-            </span>
+        {/* Right Section: User Profile Pill & Status */}
+        <div className="flex items-center gap-4">
+          {/* User Profile Info */}
+          {isAuthenticated && user && (
+            <div className="flex items-center gap-3 bg-slate-950 border border-slate-850 px-3 py-1.5 rounded-xl">
+              <div className="h-7 w-7 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-extrabold text-xs">
+                {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+              </div>
+
+              <div className="text-left hidden sm:block">
+                <span className="text-xs font-bold text-white block leading-tight truncate max-w-[120px]">
+                  {user.name}
+                </span>
+                <span className={`text-[9px] font-extrabold uppercase tracking-wider block ${
+                  user.role === 'admin' ? 'text-indigo-400' : 'text-slate-400'
+                }`}>
+                  {user.role === 'admin' ? '👑 ADMIN' : '👤 MEMBER'}
+                </span>
+              </div>
+
+              <button
+                onClick={logout}
+                title="Sign Out"
+                className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-rose-400 transition-colors ml-1 cursor-pointer"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </button>
+            </div>
           )}
+
+          {/* Connection Status Indicator */}
+          <div className="hidden md:flex items-center gap-2">
+            {isOnline === null ? (
+              <span className="flex items-center gap-1.5 bg-amber-500/10 text-amber-400 border border-amber-500/25 px-2.5 py-1 rounded-full text-[11px] font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Testing
+              </span>
+            ) : isOnline ? (
+              <span className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 px-2.5 py-1 rounded-full text-[11px] font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-450 animate-pulse"></span> API Online
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5 bg-rose-500/10 text-rose-400 border border-rose-500/25 px-2.5 py-1 rounded-full text-[11px] font-semibold animate-pulse">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span> API Offline
+              </span>
+            )}
+          </div>
         </div>
       </header>
 
-      {/* Main Content Area - Full width workspace */}
+      {/* Main Content Area */}
       <main className="flex-1 p-5 md:p-8 w-full max-w-7xl mx-auto">
         {children}
       </main>

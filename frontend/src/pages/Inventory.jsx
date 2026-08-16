@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useLocation, Link, useSearchParams } from 'react-router-dom';
+import { useLocation, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { getInventoryItems } from '../services/inventoryService';
 import InventoryCard from '../components/inventory/InventoryCard';
 import InventoryEmptyState from '../components/inventory/InventoryEmptyState';
@@ -8,6 +8,7 @@ import StorageLocationPanel from '../components/storage/StorageLocationPanel';
 import TakeItemModal from '../components/inventory/TakeItemModal';
 import AddStockModal from '../components/inventory/AddStockModal';
 import { getPhysicalDrawerNumber } from '../config/storageConfig';
+import { useAuth } from '../context/AuthContext';
 
 // Skeleton Loader Card component
 const SkeletonCard = () => (
@@ -27,8 +28,10 @@ const SkeletonCard = () => (
 );
 
 function Inventory() {
-  const routerLocation = useLocation();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const routerLocation = useLocation();
+  const { isAdmin } = useAuth();
   const searchQuery = searchParams.get('search') || '';
   const visualizerRef = useRef(null);
 
@@ -219,16 +222,18 @@ function Inventory() {
           <p className="text-xs text-slate-400 mt-1">Manage and locate everything in your physical storage.</p>
         </div>
         
-        {/* Top-Right Prominent + Add Item Button */}
-        <Link
-          to="/inventory/add"
-          className="inline-flex items-center gap-2 justify-center bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs px-5 py-3 rounded-xl transition-all shadow-lg shadow-indigo-600/25 hover:shadow-indigo-500/40 shrink-0"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" />
-          </svg>
-          <span>Add Item</span>
-        </Link>
+        {/* Top-Right Prominent + Add Item Button (Admin only) */}
+        {isAdmin && (
+          <Link
+            to="/inventory/add"
+            className="inline-flex items-center gap-2 justify-center bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs px-5 py-3 rounded-xl transition-all shadow-lg shadow-indigo-600/25 hover:shadow-indigo-500/40 shrink-0"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" />
+            </svg>
+            <span>Add Item</span>
+          </Link>
+        )}
       </div>
 
       {/* Flash Success Notification */}
@@ -358,7 +363,7 @@ function Inventory() {
                       searchQuery={searchQuery}
                       onLocate={handleLocateItem}
                       onTakeItem={handleOpenTakeModal}
-                      onAddStock={handleOpenAddStockModal}
+                      onAddStock={isAdmin ? handleOpenAddStockModal : undefined}
                       isLocated={isSelected}
                     />
                   );

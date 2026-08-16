@@ -20,6 +20,14 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Register Authentication REST routes
+const authRoutes = require('./routes/authRoutes');
+const { ensureDefaultUsersExist } = require('./controllers/authController');
+app.use('/api/auth', authRoutes);
+
+// Auto-seed default accounts if User collection is empty
+ensureDefaultUsersExist();
+
 // Register Inventory REST routes
 const inventoryRoutes = require('./routes/inventoryRoutes');
 app.use('/api/inventory', inventoryRoutes);

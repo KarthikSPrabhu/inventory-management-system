@@ -1,10 +1,36 @@
 /**
  * Service to handle communication with the Express backend REST API
+ * Automatically includes JWT Authorization token from localStorage.
  */
+
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('inventory_token');
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+};
+
+const authenticatedFetch = async (url, options = {}) => {
+  const headers = {
+    ...getAuthHeaders(),
+    ...(options.headers || {})
+  };
+
+  const response = await fetch(url, {
+    ...options,
+    headers
+  });
+
+  if (response.status === 401 && window.location.pathname !== '/login') {
+    localStorage.removeItem('inventory_token');
+    localStorage.removeItem('inventory_user');
+    window.location.href = '/login';
+  }
+
+  return response;
+};
 
 // Fetch all inventory items
 export const getItems = async () => {
-  const response = await fetch('/api/inventory');
+  const response = await authenticatedFetch('/api/inventory');
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || 'Failed to fetch inventory items');
@@ -14,7 +40,7 @@ export const getItems = async () => {
 
 // Create a new inventory item
 export const createItem = async (itemData) => {
-  const response = await fetch('/api/inventory', {
+  const response = await authenticatedFetch('/api/inventory', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -43,7 +69,7 @@ export const getInventoryItems = getItems;
 
 // Fetch inventory item by ID
 export const getInventoryItemById = async (id) => {
-  const response = await fetch(`/api/inventory/${id}`);
+  const response = await authenticatedFetch(`/api/inventory/${id}`);
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || 'Failed to fetch inventory item details');
@@ -51,9 +77,39 @@ export const getInventoryItemById = async (id) => {
   return response.json();
 };
 
+// Update inventory item (Phase 13)
+export const updateInventoryItem = async (id, itemData) => {
+  const response = await authenticatedFetch(`/api/inventory/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(itemData),
+  });
+  
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to update inventory item');
+  }
+  return data;
+};
+
+// Delete inventory item (Phase 13)
+export const deleteInventoryItem = async (id) => {
+  const response = await authenticatedFetch(`/api/inventory/${id}`, {
+    method: 'DELETE',
+  });
+  
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to delete inventory item');
+  }
+  return data;
+};
+
 // Record inventory item withdrawal (Phase 9)
 export const createUsageRecord = async (usageData) => {
-  const response = await fetch('/api/usage', {
+  const response = await authenticatedFetch('/api/usage', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -70,7 +126,7 @@ export const createUsageRecord = async (usageData) => {
 
 // Record inventory item stock-in / restocking (Phase 11)
 export const createStockInRecord = async (stockInData) => {
-  const response = await fetch('/api/stock-in', {
+  const response = await authenticatedFetch('/api/stock-in', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -99,7 +155,7 @@ export const getUsageRecords = async (params = {}) => {
   const queryString = query.toString();
   const url = queryString ? `/api/usage?${queryString}` : '/api/usage';
 
-  const response = await fetch(url);
+  const response = await authenticatedFetch(url);
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || 'Failed to fetch usage records');
@@ -109,7 +165,7 @@ export const getUsageRecords = async (params = {}) => {
 
 // Fetch usage records for single item (Phase 9)
 export const getItemUsageRecords = async (itemId) => {
-  const response = await fetch(`/api/usage/item/${itemId}`);
+  const response = await authenticatedFetch(`/api/usage/item/${itemId}`);
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || 'Failed to fetch item usage records');
@@ -119,7 +175,7 @@ export const getItemUsageRecords = async (itemId) => {
 
 // Fetch all projects (Phase 9)
 export const getProjects = async () => {
-  const response = await fetch('/api/projects');
+  const response = await authenticatedFetch('/api/projects');
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || 'Failed to fetch projects');
@@ -129,7 +185,7 @@ export const getProjects = async () => {
 
 // Create a new project (Phase 9)
 export const createProject = async (projectData) => {
-  const response = await fetch('/api/projects', {
+  const response = await authenticatedFetch('/api/projects', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -146,7 +202,7 @@ export const createProject = async (projectData) => {
 
 // Fetch project details by ID (Phase 9)
 export const getProjectById = async (id) => {
-  const response = await fetch(`/api/projects/${id}`);
+  const response = await authenticatedFetch(`/api/projects/${id}`);
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || 'Failed to fetch project details');
@@ -156,7 +212,7 @@ export const getProjectById = async (id) => {
 
 // Fetch aggregated project usage (Phase 9)
 export const getProjectUsage = async (id) => {
-  const response = await fetch(`/api/projects/${id}/usage`);
+  const response = await authenticatedFetch(`/api/projects/${id}/usage`);
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || 'Failed to fetch project usage');
@@ -167,7 +223,7 @@ export const getProjectUsage = async (id) => {
 // Fetch project suggestions for an item (Phase 9)
 export const getProjectSuggestions = async (itemId) => {
   const url = itemId ? `/api/projects/suggestions?itemId=${itemId}` : '/api/projects/suggestions';
-  const response = await fetch(url);
+  const response = await authenticatedFetch(url);
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || 'Failed to fetch project suggestions');
@@ -177,7 +233,7 @@ export const getProjectSuggestions = async (itemId) => {
 
 // Update project status / details (Phase 9)
 export const updateProject = async (id, updateData) => {
-  const response = await fetch(`/api/projects/${id}`, {
+  const response = await authenticatedFetch(`/api/projects/${id}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
@@ -194,7 +250,7 @@ export const updateProject = async (id, updateData) => {
 
 // Delete project (Phase 9)
 export const deleteProject = async (id) => {
-  const response = await fetch(`/api/projects/${id}`, {
+  const response = await authenticatedFetch(`/api/projects/${id}`, {
     method: 'DELETE',
   });
 
@@ -207,7 +263,7 @@ export const deleteProject = async (id) => {
 
 // Analytics API Services (Phase 12)
 export const getAnalyticsSummary = async (dateRange = 'all') => {
-  const response = await fetch(`/api/analytics/summary?dateRange=${dateRange}`);
+  const response = await authenticatedFetch(`/api/analytics/summary?dateRange=${dateRange}`);
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || 'Unable to load analytics summary.');
@@ -216,7 +272,7 @@ export const getAnalyticsSummary = async (dateRange = 'all') => {
 };
 
 export const getAnalyticsMovement = async (dateRange = 'all') => {
-  const response = await fetch(`/api/analytics/movement?dateRange=${dateRange}`);
+  const response = await authenticatedFetch(`/api/analytics/movement?dateRange=${dateRange}`);
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || 'Unable to load movement analytics.');
@@ -225,7 +281,7 @@ export const getAnalyticsMovement = async (dateRange = 'all') => {
 };
 
 export const getMostUsedItems = async (dateRange = 'all', limit = 5) => {
-  const response = await fetch(`/api/analytics/most-used-items?dateRange=${dateRange}&limit=${limit}`);
+  const response = await authenticatedFetch(`/api/analytics/most-used-items?dateRange=${dateRange}&limit=${limit}`);
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || 'Unable to load most-used items.');
@@ -234,7 +290,7 @@ export const getMostUsedItems = async (dateRange = 'all', limit = 5) => {
 };
 
 export const getMostUsedProjects = async (dateRange = 'all', limit = 5) => {
-  const response = await fetch(`/api/analytics/most-used-projects?dateRange=${dateRange}&limit=${limit}`);
+  const response = await authenticatedFetch(`/api/analytics/most-used-projects?dateRange=${dateRange}&limit=${limit}`);
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || 'Unable to load project consumption.');
@@ -243,15 +299,10 @@ export const getMostUsedProjects = async (dateRange = 'all', limit = 5) => {
 };
 
 export const getLowStockAnalytics = async () => {
-  const response = await fetch('/api/analytics/low-stock');
+  const response = await authenticatedFetch('/api/analytics/low-stock');
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || 'Unable to load low stock items.');
   }
   return response.json();
 };
-
-
-
-
-

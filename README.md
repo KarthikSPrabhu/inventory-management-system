@@ -482,13 +482,53 @@ Endpoints implemented in [`backend/src/controllers/analyticsController.js`](file
 | **GET** | `/api/analytics/low-stock` | Active low-stock and out-of-stock item lists | None | `{ success, data: { lowStock, outOfStock } }` |
 | **GET** | `/api/analytics/movement` | Timeline of restocks vs withdrawals over time | `?dateRange=all` | `{ success, data: [{ date, stockIn, stockOut, netChange }] }` |
 
-### 3. Analytics Page (`/analytics`)
-* **Primary Navigation**: Header updated to `Inventory`, `Projects`, `History`, `Analytics` (`/analytics`). `Inventory` remains default landing page.
-* **Date Range Selector**: Controls movement stats, top items, project consumption, and charts (`Today`, `Last 7 days`, `Last 30 days`, `Last 90 days`, `All time`).
-* **Current Inventory Cards**: `Total Items` (distinct), `Total Units` (sum of available stock), `Low Stock`, `Out of Stock`.
-* **Stock Movement Cards**: `Stock In` (+X), `Stock Out` (-Y), `Net Change` (+Z).
-* **Interactive Visualizations**: SVG progress bars and chart breakdowns for top items, top projects, and daily stock movement.
-* **Item & Project Direct Links**: Most-used items and low-stock cards link directly to existing item details (`/inventory/:id`) and project details (`/projects/:id`).
+---
+
+## Phase 13: Authentication & User Management
+
+We implemented JWT-based authentication and role-based authorization (`admin` vs `member`), protecting both backend REST API endpoints and frontend routes.
+
+### 1. User Model (`User`)
+* **Mongoose Schema**: [`backend/src/models/User.js`](file:///D:/Inventory-Management-System/backend/src/models/User.js)
+  * `name`: String (required, trim).
+  * `email`: String (required, unique, lowercase, trim).
+  * `passwordHash`: String (required, `select: false` so it is excluded from default queries).
+  * `role`: String (enum: `['admin', 'member']`, default: `'member'`).
+* **Password Hashing**: Passwords hashed securely using `bcryptjs` (salt factor 10). Plain-text passwords are never stored or exposed.
+
+### 2. Authentication API (`/api/auth`)
+* Mounted at `/api/auth` in [`backend/src/routes/authRoutes.js`](file:///D:/Inventory-Management-System/backend/src/routes/authRoutes.js):
+
+| Method | Endpoint | Description | Access | Request / Response |
+| :--- | :--- | :--- | :--- | :--- |
+| **POST** | `/api/auth/login` | Authenticate user & issue JWT | Public | `{ email, password }` $\rightarrow$ `{ success, token, user: { id, name, email, role } }` |
+| **GET** | `/api/auth/me` | Fetch authenticated user profile | Private (`requireAuth`) | Returns current user profile |
+
+### 3. Middleware & Protected APIs
+* **`requireAuth`**: Validates JWT token from `Authorization: Bearer <token>` header. Rejects missing/expired tokens with `401 Unauthorized`.
+* **`requireRole('admin')`**: Enforces role checks. Rejects non-admin users with `403 Forbidden`.
+* **API Permissions Matrix**:
+
+| Feature / Action | Admin | Member | Unauthenticated |
+| :--- | :--- | :--- | :--- |
+| **View Catalog / Details** | ✅ | ✅ | ❌ (Redirect to `/login`) |
+| **Take Item (Withdrawal)** | ✅ | ✅ | ❌ |
+| **View History & Analytics** | ✅ | ✅ | ❌ |
+| **Create Item / Edit Item / Delete Item** | ✅ | ❌ (`403 Forbidden`) | ❌ (`401 Unauthorized`) |
+| **Restock Stock In (`+ Add Stock`)** | ✅ | ❌ (`403 Forbidden`) | ❌ (`401 Unauthorized`) |
+| **Create Project / Edit / Delete Project** | ✅ | ❌ (`403 Forbidden`) | ❌ (`401 Unauthorized`) |
+
+### 4. Initial Seed Accounts & Setup
+Default initial accounts auto-bootstrap on server startup if the `User` collection is empty (or can be seeded via `node backend/src/scripts/seedAdmin.js`):
+* **Admin**: `admin@inventory.com` | Password: `Admin@12345` (Role: `admin`)
+* **Member**: `member@inventory.com` | Password: `Member@12345` (Role: `member`)
+
+### 5. Frontend Auth State & UI Guarding
+* **Auth Context**: [`frontend/src/context/AuthContext.jsx`](file:///D:/Inventory-Management-System/frontend/src/context/AuthContext.jsx) persists JWT token in `localStorage` and injects `Authorization: Bearer <token>` on API requests.
+* **Protected Routes**: [`frontend/src/components/auth/ProtectedRoute.jsx`](file:///D:/Inventory-Management-System/frontend/src/components/auth/ProtectedRoute.jsx) guards `/inventory`, `/projects`, `/history`, and `/analytics`.
+* **Login Page**: [`frontend/src/pages/LoginPage.jsx`](file:///D:/Inventory-Management-System/frontend/src/pages/LoginPage.jsx) provides a dark glassmorphic login interface.
+* **Header Profile**: Displays current user name, role badge (`👑 ADMIN` / `👤 MEMBER`), and `Logout` button.
+
 
 
 

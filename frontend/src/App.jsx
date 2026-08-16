@@ -1,6 +1,9 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/auth/ProtectedRoute';
 import Layout from './components/layout/Layout';
+import LoginPage from './pages/LoginPage';
 import AddInventory from './pages/AddInventory';
 import Inventory from './pages/Inventory';
 import InventoryDetails from './pages/InventoryDetails';
@@ -11,20 +14,76 @@ import Analytics from './pages/Analytics';
 
 function App() {
   return (
-    <Router>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Navigate to="/inventory" replace />} />
-          <Route path="/inventory" element={<Inventory />} />
-          <Route path="/inventory/add" element={<AddInventory />} />
-          <Route path="/inventory/:id" element={<InventoryDetails />} />
-          <Route path="/projects" element={<Projects />} />
-          <Route path="/projects/:id" element={<ProjectDetails />} />
-          <Route path="/history" element={<History />} />
-          <Route path="/analytics" element={<Analytics />} />
-        </Routes>
-      </Layout>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <Layout>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            
+            <Route path="/" element={<Navigate to="/inventory" replace />} />
+            
+            <Route
+              path="/inventory"
+              element={
+                <ProtectedRoute>
+                  <Inventory />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/inventory/add"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <AddInventory />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/inventory/:id"
+              element={
+                <ProtectedRoute>
+                  <InventoryDetails />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/projects"
+              element={
+                <ProtectedRoute>
+                  <Projects />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/projects/:id"
+              element={
+                <ProtectedRoute>
+                  <ProjectDetails />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/history"
+              element={
+                <ProtectedRoute>
+                  <History />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/analytics"
+              element={
+                <ProtectedRoute>
+                  <Analytics />
+                </ProtectedRoute>
+              }
+            />
+            
+            <Route path="*" element={<Navigate to="/inventory" replace />} />
+          </Routes>
+        </Layout>
+      </Router>
+    </AuthProvider>
   );
 }
 
