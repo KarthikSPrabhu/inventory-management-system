@@ -6,6 +6,7 @@ import Inventory from './pages/Inventory';
 import InventoryDetails from './pages/InventoryDetails';
 import Projects from './pages/Projects';
 import ProjectDetails from './pages/ProjectDetails';
+import History from './pages/History';
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
           <Route path="/inventory/:id" element={<InventoryDetails />} />
           <Route path="/projects" element={<Projects />} />
           <Route path="/projects/:id" element={<ProjectDetails />} />
+          <Route path="/history" element={<History />} />
         </Routes>
       </Layout>
     </Router>

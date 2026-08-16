@@ -112,18 +112,78 @@ exports.createUsage = async (req, res) => {
   }
 };
 
-// @desc    Get all inventory withdrawal records
+// @desc    Get all inventory withdrawal records with filtering & pagination
 // @route   GET /api/usage
 // @access  Public
 exports.getAllUsage = async (req, res) => {
   try {
-    const usages = await InventoryUsage.find({})
-      .populate('item', 'name image location')
+    const { page = 1, limit = 20, search = '', itemId = '', projectId = '', dateRange = 'all' } = req.query;
+
+    const query = {};
+
+    if (itemId && isValidId(itemId)) {
+      query.item = itemId;
+    }
+
+    if (projectId && isValidId(projectId)) {
+      query.project = projectId;
+    }
+
+    if (dateRange && dateRange !== 'all') {
+      const now = new Date();
+      let startDate;
+      if (dateRange === 'today') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      } else if (dateRange === '7days') {
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      } else if (dateRange === '30days') {
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      }
+      if (startDate) {
+        query.createdAt = { $gte: startDate };
+      }
+    }
+
+    const trimmedSearch = String(search).trim();
+    if (trimmedSearch) {
+      const searchRegex = new RegExp(trimmedSearch.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i');
+
+      const matchingItems = await InventoryItem.find({ name: searchRegex }).select('_id');
+      const matchingItemIds = matchingItems.map(i => i._id);
+
+      const matchingProjects = await Project.find({ name: searchRegex }).select('_id');
+      const matchingProjectIds = matchingProjects.map(p => p._id);
+
+      const searchConditions = [
+        { location: searchRegex },
+        { notes: searchRegex },
+        { item: { $in: matchingItemIds } },
+        { project: { $in: matchingProjectIds } }
+      ];
+
+      query.$or = searchConditions;
+    }
+
+    const total = await InventoryUsage.countDocuments(query);
+
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, parseInt(limit, 10) || 20);
+    const skip = (pageNum - 1) * limitNum;
+    const totalPages = Math.ceil(total / limitNum) || 1;
+
+    const usages = await InventoryUsage.find(query)
+      .populate('item', 'name image location quantity')
       .populate('project', 'name status')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum);
 
     res.status(200).json({
       success: true,
+      count: usages.length,
+      total,
+      page: pageNum,
+      totalPages,
       data: usages
     });
   } catch (error) {
@@ -135,7 +195,7 @@ exports.getAllUsage = async (req, res) => {
   }
 };
 
-// @desc    Get usage records for a specific inventory item
+// @desc    Get usage records and item summary for a specific inventory item
 // @route   GET /api/usage/item/:itemId
 // @access  Public
 exports.getItemUsage = async (req, res) => {
@@ -149,13 +209,37 @@ exports.getItemUsage = async (req, res) => {
       });
     }
 
+    const item = await InventoryItem.findById(itemId);
+    if (!item) {
+      return res.status(404).json({
+        success: false,
+        message: 'Inventory item not found'
+      });
+    }
+
     const usages = await InventoryUsage.find({ item: itemId })
-      .populate('item', 'name image location')
+      .populate('item', 'name image location quantity')
       .populate('project', 'name status')
       .sort({ createdAt: -1 });
 
+    let totalUnitsUsed = 0;
+    const uniqueProjects = new Set();
+
+    usages.forEach((rec) => {
+      totalUnitsUsed += Number(rec.quantity) || 0;
+      if (rec.project) {
+        const pId = rec.project._id ? String(rec.project._id) : String(rec.project);
+        uniqueProjects.add(pId);
+      }
+    });
+
     res.status(200).json({
       success: true,
+      summary: {
+        currentStock: item.quantity,
+        totalUnitsUsed,
+        projectsCount: uniqueProjects.size
+      },
       data: usages
     });
   } catch (error) {
@@ -166,3 +250,4 @@ exports.getItemUsage = async (req, res) => {
     });
   }
 };
+

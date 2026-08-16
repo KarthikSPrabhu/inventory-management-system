@@ -68,9 +68,20 @@ export const createUsageRecord = async (usageData) => {
   return data;
 };
 
-// Fetch all usage records (Phase 9)
-export const getUsageRecords = async () => {
-  const response = await fetch('/api/usage');
+// Fetch all usage records with filtering & pagination (Phase 10)
+export const getUsageRecords = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.page) query.append('page', params.page);
+  if (params.limit) query.append('limit', params.limit);
+  if (params.search) query.append('search', params.search);
+  if (params.itemId) query.append('itemId', params.itemId);
+  if (params.projectId) query.append('projectId', params.projectId);
+  if (params.dateRange) query.append('dateRange', params.dateRange);
+
+  const queryString = query.toString();
+  const url = queryString ? `/api/usage?${queryString}` : '/api/usage';
+
+  const response = await fetch(url);
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || 'Failed to fetch usage records');

@@ -338,7 +338,8 @@ exports.getProjectUsage = async (req, res) => {
           differentItemsCount: aggregatedItems.length,
           totalUnitsUsed
         },
-        items: aggregatedItems
+        items: aggregatedItems,
+        activityRecords: usageRecords
       }
     });
   } catch (error) {

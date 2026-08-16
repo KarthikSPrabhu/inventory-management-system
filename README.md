@@ -397,11 +397,45 @@ Project routes mounted under `/api/projects` in [`backend/src/routes/projectRout
 ### 4. Component Usage Aggregation
 * `GET /api/projects/:id/usage` aggregates multiple withdrawal transactions of the same item into a single total (e.g. 3 units + 2 units = **5 units total**), displaying current item locations even if stock is exhausted.
 
-### 5. UI Architecture & Navigation
-* **Navigation Tabs**: Top header bar features **Inventory** (`/inventory`) and **Projects** (`/projects`) navigation.
-* **Projects Page**: [`frontend/src/pages/Projects.jsx`](file:///D:/Inventory-Management-System/frontend/src/pages/Projects.jsx) lists project cards with status badges (`Active`, `Completed`, `Archived`), item usage counters, search filtering, and `+ Create Project` modal.
-* **Project Details Page**: [`frontend/src/pages/ProjectDetails.jsx`](file:///D:/Inventory-Management-System/frontend/src/pages/ProjectDetails.jsx) displays aggregated components used, item location codes, and status toggles.
-* **Take Item Modal**: [`frontend/src/components/inventory/TakeItemModal.jsx`](file:///D:/Inventory-Management-System/frontend/src/components/inventory/TakeItemModal.jsx) provides ranked project dropdowns and inline project creation.
+---
+
+## Phase 10: Inventory Usage History & Activity
+
+We added comprehensive auditability, withdrawal activity history, and usage analytics across the application.
+
+### 1. Source of Truth & Preservation
+* **Single Source of Truth**: All activity records utilize the existing `InventoryUsage` MongoDB collection created in Phase 9. No duplicate history collections were created.
+* **Location Preservation**: Each historical record permanently preserves `location` (the exact location code string at withdrawal time). Even if an item's current location changes later, historical usage records retain their historical location code.
+
+### 2. REST API Endpoints & Enhancements
+Extended `GET /api/usage`, `GET /api/usage/item/:itemId`, and `GET /api/projects/:id/usage`:
+
+| Method | Endpoint | Description | Request Query | Response |
+| :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/api/usage` | List usage records with pagination & filtering | `?page=1&limit=20&search=&itemId=&projectId=&dateRange=all` | `{ success, count, total, page, totalPages, data }` |
+| **GET** | `/api/usage/item/:itemId` | Item summary metrics & withdrawal logs | None | `{ success, summary: { currentStock, totalUnitsUsed, projectsCount }, data }` |
+| **GET** | `/api/projects/:id/usage` | Project summary, aggregated items, & activity logs | None | `{ success, data: { project, summary, items, activityRecords } }` |
+
+### 3. History Page & Advanced Filtering
+* **Navigation Entry**: Main navigation header features **Inventory**, **Projects**, and **History** tabs (`/history`).
+* **History Page (`/history`)**: Lists all inventory withdrawal activity cards in reverse chronological order (newest first).
+* **Filter Controls**:
+  * **Search**: Free text matching on item name, project name, preserved location code, or notes.
+  * **Item Filter**: Select specific inventory item.
+  * **Project Filter**: Select specific project.
+  * **Date Range Filter**: Filter by `Today`, `Last 7 days`, `Last 30 days`, or `All time`.
+* **Pagination**: Server-side pagination support (`Showing X–Y of Z`, `[ Previous ]`, `[ Next ]`).
+* **Activity Card Display**: Displays Item Name, Quantity Taken (e.g. `−3 units`), Project Name, Preserved Location (e.g. `📍 A319`), Timestamp, and Notes.
+
+### 4. Extended Item Details View (`/inventory/:id`)
+* **Item Summary Metrics**: Displays **Current Stock**, **Total Units Ever Used**, and **Number of Projects Using Item**.
+* **Usage History Section**: Lists all past withdrawal transactions for that specific item.
+
+### 5. Extended Project Details View (`/projects/:id`)
+* **Project Summary Metrics**: Displays **Different Items** count and **Total Units Used**.
+* **Current Components Section**: Displays aggregated total quantities per item.
+* **Activity Section**: Displays chronological list of raw withdrawal transactions for that project.
+
 
 
 

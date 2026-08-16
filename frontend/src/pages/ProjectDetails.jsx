@@ -94,14 +94,23 @@ function ProjectDetails() {
     );
   }
 
-  const { project, summary, items } = projectData;
+  const { project, summary, items, activityRecords = [] } = projectData;
 
   let statusBadge = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25';
   if (project.status === 'completed') statusBadge = 'bg-blue-500/10 text-blue-400 border-blue-500/25';
   if (project.status === 'archived') statusBadge = 'bg-slate-500/10 text-slate-400 border-slate-500/25';
 
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    return new Date(dateStr).toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-6 animate-fadeIn pb-12">
       {/* Top Breadcrumb & Delete Action */}
       <div className="flex items-center justify-between">
         <Link
@@ -172,7 +181,7 @@ function ProjectDetails() {
           </div>
         </div>
 
-        {/* Summary Metrics Bar */}
+        {/* Summary Metrics Bar (Requirement 9) */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-850">
           <div className="bg-slate-950/60 border border-slate-850 p-4 rounded-xl">
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Different Items</span>
@@ -197,10 +206,10 @@ function ProjectDetails() {
         </div>
       </div>
 
-      {/* Components Used List */}
+      {/* CURRENT COMPONENTS (Requirement 8) */}
       <div className="space-y-4">
         <div className="flex items-center justify-between px-1">
-          <h3 className="text-sm font-extrabold text-white uppercase tracking-wider">Components Used</h3>
+          <h3 className="text-sm font-extrabold text-white uppercase tracking-wider">CURRENT COMPONENTS</h3>
           <Link
             to="/inventory"
             className="text-xs font-extrabold text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1"
@@ -235,19 +244,29 @@ function ProjectDetails() {
             {items.map((row) => {
               const { item, quantityUsed, location, notes } = row;
               const currentStock = item?.quantity ?? 0;
+              const itemId = item?._id;
 
               return (
                 <div
-                  key={item?._id || location}
+                  key={itemId || location}
                   className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-md flex flex-col justify-between"
                 >
                   <div className="space-y-3">
                     {/* Item header */}
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <h4 className="text-sm font-extrabold text-white line-clamp-1">
-                          {item?.name || 'Inventory Item'}
-                        </h4>
+                        {itemId ? (
+                          <Link
+                            to={`/inventory/${itemId}`}
+                            className="text-sm font-extrabold text-white hover:text-indigo-400 transition-colors line-clamp-1"
+                          >
+                            {item?.name || 'Inventory Item'}
+                          </Link>
+                        ) : (
+                          <h4 className="text-sm font-extrabold text-white line-clamp-1">
+                            {item?.name || 'Inventory Item'}
+                          </h4>
+                        )}
                         <span className="font-mono text-xs font-bold text-indigo-400 mt-1 block">
                           📍 {location}
                         </span>
@@ -270,6 +289,76 @@ function ProjectDetails() {
                     <span className="text-slate-500 font-semibold">Current Stock:</span>
                     <span className={`font-bold font-mono ${currentStock > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                       {currentStock > 0 ? `${currentStock} available` : '0 available (Out of stock)'}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ACTIVITY Section (Requirement 8) */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-6 shadow-lg">
+        <div className="flex items-center justify-between border-b border-slate-850 pb-4">
+          <div>
+            <h3 className="text-base font-extrabold text-white tracking-tight uppercase">ACTIVITY</h3>
+            <p className="text-xs text-slate-400 mt-0.5">Chronological log of withdrawals for {project.name}</p>
+          </div>
+          <Link
+            to="/history"
+            className="text-xs font-extrabold text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1"
+          >
+            <span>View All History</span>
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+        </div>
+
+        {activityRecords.length === 0 ? (
+          <div className="py-8 text-center text-slate-500 text-xs font-medium">
+            NO ACTIVITY YET
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {activityRecords.map((rec) => {
+              const itemName = rec.item?.name || 'Inventory Item';
+              const itemId = rec.item?._id;
+              const locationCode = rec.location || 'N/A';
+
+              return (
+                <div
+                  key={rec._id}
+                  className="bg-slate-950/70 border border-slate-850 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      {itemId ? (
+                        <Link
+                          to={`/inventory/${itemId}`}
+                          className="text-sm font-bold text-white hover:text-indigo-400 transition-colors"
+                        >
+                          {itemName}
+                        </Link>
+                      ) : (
+                        <span className="text-sm font-bold text-white">{itemName}</span>
+                      )}
+                      <span className="font-mono text-[11px] font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
+                        📍 {locationCode}
+                      </span>
+                    </div>
+                    {rec.notes && (
+                      <p className="text-xs text-slate-400 italic">"{rec.notes}"</p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0">
+                    <span className="text-xs font-bold text-rose-400 font-mono">
+                      {rec.quantity} {rec.quantity === 1 ? 'unit' : 'units'}
+                    </span>
+                    <span className="text-xs text-slate-400 font-mono">
+                      {formatDate(rec.createdAt)}
                     </span>
                   </div>
                 </div>
