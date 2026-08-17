@@ -12,6 +12,8 @@ import ProjectDetails from './pages/ProjectDetails';
 import History from './pages/History';
 import Analytics from './pages/Analytics';
 import BuyListPage from './pages/BuyListPage';
+import Users from './pages/Users';
+import Profile from './pages/Profile';
 
 function App() {
   return (
@@ -84,6 +86,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <BuyListPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/users"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Users />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
                 </ProtectedRoute>
               }
             />

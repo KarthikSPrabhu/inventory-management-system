@@ -32,6 +32,8 @@ function Layout({ children }) {
   const isHistoryActive = location.pathname.startsWith('/history');
   const isAnalyticsActive = location.pathname.startsWith('/analytics');
   const isBuyListActive = location.pathname.startsWith('/buy-list');
+  const isUsersActive = location.pathname.startsWith('/users');
+  const isProfileActive = location.pathname.startsWith('/profile');
 
   // If on login page, don't show full header layout
   if (location.pathname === '/login') {
@@ -148,6 +150,36 @@ function Layout({ children }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
               </svg>
               <span>Buy List</span>
+            </Link>
+
+            {user?.role === 'admin' && (
+              <Link
+                to="/users"
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all ${
+                  isUsersActive
+                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-[0_2px_10px_rgba(99,102,241,0.1)]'
+                    : 'text-slate-500 hover:text-slate-900 hover:bg-white border border-transparent hover:shadow-sm'
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                <span>Users</span>
+              </Link>
+            )}
+
+            <Link
+              to="/profile"
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all ${
+                isProfileActive
+                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-[0_2px_10px_rgba(99,102,241,0.1)]'
+                  : 'text-slate-500 hover:text-slate-900 hover:bg-white border border-transparent hover:shadow-sm'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <span>Profile</span>
             </Link>
           </nav>
         </div>
@@ -281,6 +313,38 @@ function Layout({ children }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
               </svg>
               <span>Buy List</span>
+            </Link>
+
+            {user?.role === 'admin' && (
+              <Link
+                to="/users"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-extrabold transition-all ${
+                  isUsersActive
+                    ? 'bg-indigo-600/20 text-indigo-600 border border-indigo-300'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                <span>Users</span>
+              </Link>
+            )}
+
+            <Link
+              to="/profile"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-extrabold transition-all ${
+                isProfileActive
+                  ? 'bg-indigo-600/20 text-indigo-600 border border-indigo-300'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <span>Profile</span>
             </Link>
           </nav>
 

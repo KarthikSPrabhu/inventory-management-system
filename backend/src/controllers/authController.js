@@ -45,6 +45,13 @@ exports.login = async (req, res) => {
       });
     }
 
+    if (!user.isActive) {
+      return res.status(403).json({
+        success: false,
+        message: 'Your account has been disabled.'
+      });
+    }
+
     // Check if password matches
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
@@ -97,6 +104,54 @@ exports.getMe = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve user profile'
+    });
+  }
+};
+
+// @desc    Change user password
+// @route   POST /api/auth/change-password
+// @access  Private (requireAuth)
+exports.changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user._id;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide both current and new passwords'
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 8 characters'
+      });
+    }
+
+    const user = await User.findById(userId).select('+passwordHash');
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
+    const isMatch = await user.matchPassword(currentPassword);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Incorrect current password' });
+    }
+
+    user.passwordHash = await User.hashPassword(newPassword);
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+  } catch (error) {
+    console.error('Change Password Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to change password'
     });
   }
 };

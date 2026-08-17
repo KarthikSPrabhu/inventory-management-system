@@ -132,6 +132,10 @@ app.use('/api/auth', authRoutes);
 // Auto-seed default accounts if User collection is empty
 ensureDefaultUsersExist();
 
+// Register User Management REST routes
+const userRoutes = require('./routes/userRoutes');
+app.use('/api/users', userRoutes);
+
 // Register Inventory REST routes
 const inventoryRoutes = require('./routes/inventoryRoutes');
 app.use('/api/inventory', inventoryRoutes);
