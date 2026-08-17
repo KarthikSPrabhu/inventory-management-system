@@ -206,9 +206,13 @@ function TakeItemModal({ item, isOpen, onClose, onSuccess }) {
                   qtyError ? 'border-rose-500/70 focus:border-rose-500' : 'border-slate-200 focus:border-indigo-500'
                 }`}
               />
-              {qtyError && (
+              {qtyError ? (
                 <p className="text-[11px] font-semibold text-rose-600 px-1">{qtyError}</p>
-              )}
+              ) : (availableQty - numQty < (item.minimumStock !== undefined ? item.minimumStock : (item.lowStockThreshold || 0))) ? (
+                <p className="text-[11px] font-semibold text-amber-600 px-1">
+                  Warning: Taking this amount will drop stock below minimum threshold ({item.minimumStock !== undefined ? item.minimumStock : (item.lowStockThreshold || 0)}).
+                </p>
+              ) : null}
             </div>
 
             {/* Project Selector with Intelligent Suggestions */}

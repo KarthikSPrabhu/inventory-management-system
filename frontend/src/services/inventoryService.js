@@ -29,8 +29,19 @@ const authenticatedFetch = async (url, options = {}) => {
 };
 
 // Fetch all inventory items
-export const getItems = async () => {
-  const response = await authenticatedFetch('/api/inventory');
+export const getItems = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.page) query.append('page', params.page);
+  if (params.limit) query.append('limit', params.limit);
+  if (params.search) query.append('search', params.search);
+  if (params.category) query.append('category', params.category);
+  if (params.status) query.append('status', params.status);
+  if (params.sort) query.append('sort', params.sort);
+
+  const queryString = query.toString();
+  const url = queryString ? `/api/inventory?${queryString}` : '/api/inventory';
+
+  const response = await authenticatedFetch(url);
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || 'Failed to fetch inventory items');
@@ -137,6 +148,23 @@ export const createStockInRecord = async (stockInData) => {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.message || 'Unable to add stock. Please try again.');
+  }
+  return data;
+};
+
+// Record inventory stock adjustment (Phase 19)
+export const adjustStockRecord = async (id, adjustData) => {
+  const response = await authenticatedFetch(`/api/inventory/${id}/adjust`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(adjustData),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.message || 'Unable to adjust stock. Please try again.');
   }
   return data;
 };

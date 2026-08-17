@@ -71,9 +71,11 @@ exports.createStockIn = async (req, res) => {
     }
 
     try {
-      const itemQuery = InventoryItem.findById(itemId);
-      if (session) itemQuery.session(session);
-      const item = await itemQuery;
+      const item = await InventoryItem.findOneAndUpdate(
+        { _id: itemId },
+        { $inc: { quantity: qty } },
+        { new: true, session: session || undefined }
+      );
 
       if (!item) {
         if (session) await session.abortTransaction();
@@ -82,10 +84,6 @@ exports.createStockIn = async (req, res) => {
           message: 'Inventory item not found'
         });
       }
-
-      // Increase item quantity in MongoDB Atlas
-      item.quantity += qty;
-      await item.save(session ? { session } : undefined);
 
       const stockIn = new InventoryStockIn({
         item: item._id,

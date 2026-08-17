@@ -1,28 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { createStockInRecord } from '../../services/inventoryService';
+import { adjustStockRecord } from '../../services/inventoryService';
 
 /**
- * AddStockModal Component — Phase 11
+ * AdjustStockModal Component — Phase 19
  * 
- * Polished modal dialog for adding stock (restocking) to an existing inventory item.
- * Includes quantity validation, predefined & custom reason handling, optional notes,
- * and double submission protection.
+ * Polished modal dialog for adjusting stock to an absolute value for corrections.
  */
-function AddStockModal({ item, isOpen, onClose, onSuccess }) {
-  const [quantityAdd, setQuantityAdd] = useState(1);
-  const [reason, setReason] = useState('Purchased');
+function AdjustStockModal({ item, isOpen, onClose, onSuccess }) {
+  const [newQuantity, setNewQuantity] = useState(0);
+  const [reason, setReason] = useState('Physical Count Correction');
   const [customReason, setCustomReason] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const PREDEFINED_REASONS = ['Purchased', 'Returned', 'Found', 'Transferred In', 'Correction', 'Other'];
+  const PREDEFINED_REASONS = ['Physical Count Correction', 'Inventory Audit', 'System Sync Error', 'Found Missing Item', 'Other'];
 
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen && item) {
-      setQuantityAdd(1);
-      setReason('Purchased');
+      setNewQuantity(item.quantity || 0);
+      setReason('Physical Count Correction');
       setCustomReason('');
       setNotes('');
       setErrorMsg('');
@@ -33,16 +31,19 @@ function AddStockModal({ item, isOpen, onClose, onSuccess }) {
   if (!isOpen || !item) return null;
 
   const currentStock = item.quantity || 0;
-  const numQty = Number(quantityAdd);
+  const numQty = Number(newQuantity);
 
   // Validation checks
-  const isQtyValid = Number.isInteger(numQty) && numQty >= 1;
+  const isQtyValid = Number.isInteger(numQty) && numQty >= 0;
   const isReasonValid = reason === 'Other' ? Boolean(customReason.trim()) : Boolean(reason);
-  const isFormValid = isQtyValid && isReasonValid && !submitting;
+  const isDiff = numQty !== currentStock;
+  const isFormValid = isQtyValid && isReasonValid && isDiff && !submitting;
 
   let qtyError = '';
-  if (quantityAdd !== '' && (!Number.isInteger(numQty) || numQty < 1)) {
-    qtyError = 'Quantity must be a positive whole number.';
+  if (newQuantity !== '' && (!Number.isInteger(numQty) || numQty < 0)) {
+    qtyError = 'Quantity must be a non-negative whole number.';
+  } else if (numQty === currentStock) {
+    qtyError = 'New quantity must be different from current stock.';
   }
 
   let reasonError = '';
@@ -58,25 +59,23 @@ function AddStockModal({ item, isOpen, onClose, onSuccess }) {
     setErrorMsg('');
 
     try {
-      const response = await createStockInRecord({
-        itemId: item._id,
-        quantity: numQty,
-        reason,
-        customReason: customReason.trim(),
+      const response = await adjustStockRecord(item._id, {
+        newQuantity: numQty,
+        reason: reason === 'Other' ? customReason.trim() : reason,
         notes: notes.trim()
       });
 
       if (response.success) {
         if (onSuccess) {
-          onSuccess(response.message || `${numQty} ${item.name} unit(s) added to inventory.`, response.data);
+          onSuccess(response.message || `Stock for ${item.name} adjusted to ${numQty}.`);
         }
         onClose();
       } else {
-        throw new Error(response.message || 'Unable to add stock.');
+        throw new Error(response.message || 'Unable to adjust stock.');
       }
     } catch (err) {
-      console.error('Add Stock Error:', err);
-      setErrorMsg(err.message || 'Unable to add stock. Please try again.');
+      console.error('Adjust Stock Error:', err);
+      setErrorMsg(err.message || 'Unable to adjust stock. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -86,7 +85,7 @@ function AddStockModal({ item, isOpen, onClose, onSuccess }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 select-none">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-white backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-white/70 backdrop-blur-sm transition-opacity"
         onClick={submitting ? undefined : onClose}
       />
 
@@ -95,13 +94,13 @@ function AddStockModal({ item, isOpen, onClose, onSuccess }) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-100">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-100 border border-emerald-300 flex items-center justify-center text-emerald-600">
+            <div className="w-8 h-8 rounded-xl bg-indigo-100 border border-indigo-300 flex items-center justify-center text-indigo-600">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
             </div>
             <div>
-              <h3 className="text-sm font-black text-slate-900 tracking-tight uppercase">ADD INVENTORY STOCK</h3>
+              <h3 className="text-sm font-black text-slate-900 tracking-tight uppercase">ADJUST INVENTORY</h3>
               <p className="text-[11px] text-slate-500 font-semibold truncate max-w-[220px]">{item.name}</p>
             </div>
           </div>
@@ -145,42 +144,37 @@ function AddStockModal({ item, isOpen, onClose, onSuccess }) {
             </div>
           </div>
 
-          {/* Quantity to Add Input */}
+          {/* Quantity Input */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-600 block">
-              Quantity to Add <span className="text-emerald-600">*</span>
+              New Exact Quantity <span className="text-indigo-600">*</span>
             </label>
             <input
               type="number"
-              min="1"
+              min="0"
               step="1"
-              value={quantityAdd}
-              onChange={(e) => setQuantityAdd(e.target.value)}
+              value={newQuantity}
+              onChange={(e) => setNewQuantity(e.target.value)}
               disabled={submitting}
-              placeholder="5"
               className={`w-full bg-slate-50 border rounded-xl px-4 py-2.5 text-sm font-bold text-slate-900 placeholder-slate-400 focus:outline-none transition-colors ${
-                qtyError ? 'border-rose-500/70 focus:border-rose-500' : 'border-slate-200 focus:border-emerald-500'
+                qtyError ? 'border-rose-500/70 focus:border-rose-500' : 'border-slate-200 focus:border-indigo-500'
               }`}
             />
-            {qtyError ? (
+            {qtyError && (
               <p className="text-[11px] font-semibold text-rose-600 px-1">{qtyError}</p>
-            ) : (item.maximumStock !== undefined && item.maximumStock > 0 && currentStock + numQty > item.maximumStock) ? (
-              <p className="text-[11px] font-semibold text-amber-600 px-1">
-                Warning: Adding this amount will exceed maximum stock limit ({item.maximumStock}).
-              </p>
-            ) : null}
+            )}
           </div>
 
           {/* Reason Select */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-600 block">
-              Reason <span className="text-emerald-600">*</span>
+              Adjustment Reason <span className="text-indigo-600">*</span>
             </label>
             <select
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               disabled={submitting}
-              className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-900 focus:outline-none transition-colors cursor-pointer"
+              className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-900 focus:outline-none transition-colors cursor-pointer"
             >
               {PREDEFINED_REASONS.map((r) => (
                 <option key={r} value={r}>
@@ -194,16 +188,16 @@ function AddStockModal({ item, isOpen, onClose, onSuccess }) {
           {reason === 'Other' && (
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-600 block">
-                Custom Explanation <span className="text-emerald-600">*</span>
+                Custom Explanation <span className="text-indigo-600">*</span>
               </label>
               <input
                 type="text"
                 value={customReason}
                 onChange={(e) => setCustomReason(e.target.value)}
                 disabled={submitting}
-                placeholder="e.g. Received from lab hardware grant"
+                placeholder="e.g. Correcting typo from yesterday"
                 className={`w-full bg-slate-50 border rounded-xl px-4 py-2 text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none transition-colors ${
-                  reasonError ? 'border-rose-500/70 focus:border-rose-500' : 'border-slate-200 focus:border-emerald-500'
+                  reasonError ? 'border-rose-500/70 focus:border-rose-500' : 'border-slate-200 focus:border-indigo-500'
                 }`}
               />
               {reasonError && (
@@ -225,20 +219,19 @@ function AddStockModal({ item, isOpen, onClose, onSuccess }) {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               disabled={submitting}
-              placeholder="e.g. Bought for upcoming robotics project"
               maxLength={500}
-              className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-4 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-colors resize-none"
+              className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-xl px-4 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-colors resize-none"
             />
           </div>
 
           {/* Confirmation summary box */}
-          {isQtyValid && isReasonValid && (
-            <div className="bg-emerald-950/30 border border-emerald-200 p-3 rounded-xl text-xs text-emerald-300 flex items-center gap-2">
-              <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          {isQtyValid && isReasonValid && isDiff && (
+            <div className="bg-indigo-50/50 border border-indigo-200 p-3 rounded-xl text-xs text-indigo-700 flex items-center gap-2">
+              <svg className="w-4 h-4 text-indigo-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <span>
-                Add <strong>+{numQty}</strong> units to <strong>{item.name}</strong> ({currentStock} → <strong>{currentStock + numQty}</strong> available)?
+                Change stock from <strong>{currentStock}</strong> to <strong>{numQty}</strong> (Difference: <strong>{numQty - currentStock > 0 ? '+' : ''}{numQty - currentStock}</strong>).
               </span>
             </div>
           )}
@@ -259,7 +252,7 @@ function AddStockModal({ item, isOpen, onClose, onSuccess }) {
               disabled={!isFormValid}
               className={`font-extrabold text-xs px-5 py-2.5 rounded-xl transition-all shadow-md flex items-center gap-2 ${
                 isFormValid
-                  ? 'bg-emerald-600 hover:bg-emerald-50 text-slate-900 shadow-emerald-600/30 cursor-pointer'
+                  ? 'bg-indigo-600 hover:bg-indigo-50 text-slate-900 shadow-indigo-600/30 cursor-pointer'
                   : 'bg-slate-100 text-slate-500 border border-slate-300 cursor-not-allowed'
               }`}
             >
@@ -269,10 +262,10 @@ function AddStockModal({ item, isOpen, onClose, onSuccess }) {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  <span>Adding Stock...</span>
+                  <span>Adjusting...</span>
                 </>
               ) : (
-                <span>Add Stock</span>
+                <span>Confirm Adjustment</span>
               )}
             </button>
           </div>
@@ -282,4 +275,4 @@ function AddStockModal({ item, isOpen, onClose, onSuccess }) {
   );
 }
 
-export default AddStockModal;
+export default AdjustStockModal;

@@ -7,8 +7,10 @@ function AddInventory() {
   
   // Field States
   const [name, setName] = useState('');
+  const [category, setCategory] = useState('Microcontrollers');
   const [quantity, setQuantity] = useState('0');
-  const [lowStockThreshold, setLowStockThreshold] = useState('5');
+  const [minimumStock, setMinimumStock] = useState('5');
+  const [maximumStock, setMaximumStock] = useState('0');
   const [section, setSection] = useState('');
   const [storageUnit, setStorageUnit] = useState('');
   const [box, setBox] = useState('');
@@ -49,10 +51,20 @@ function AddInventory() {
       errors.quantity = 'Quantity cannot be negative';
     }
 
-    // Low Stock Threshold Check (Integer >= 0)
-    const tVal = Number(lowStockThreshold);
-    if (lowStockThreshold !== '' && (isNaN(tVal) || !Number.isInteger(tVal) || tVal < 0)) {
-      errors.lowStockThreshold = 'Threshold must be a whole number >= 0';
+    // Minimum Stock Check (Integer >= 0)
+    const tVal = Number(minimumStock);
+    if (minimumStock !== '' && (isNaN(tVal) || !Number.isInteger(tVal) || tVal < 0)) {
+      errors.minimumStock = 'Minimum stock must be a whole number >= 0';
+    }
+
+    // Maximum Stock Check (Integer >= 0)
+    const mVal = Number(maximumStock);
+    if (maximumStock !== '' && (isNaN(mVal) || !Number.isInteger(mVal) || mVal < 0)) {
+      errors.maximumStock = 'Maximum stock must be a whole number >= 0';
+    }
+    
+    if (mVal > 0 && tVal > mVal) {
+      errors.minimumStock = 'Minimum stock cannot exceed maximum stock';
     }
 
     // 3. Location Section Check
@@ -92,8 +104,10 @@ function AddInventory() {
 
     const payload = {
       name: name.trim(),
+      category: category,
       quantity: parseInt(quantity, 10),
-      lowStockThreshold: lowStockThreshold !== '' ? parseInt(lowStockThreshold, 10) : 5,
+      minimumStock: minimumStock !== '' ? parseInt(minimumStock, 10) : 0,
+      maximumStock: maximumStock !== '' ? parseInt(maximumStock, 10) : 0,
       image: image.trim(),
       location: {
         section: sectionClean,
@@ -155,6 +169,30 @@ function AddInventory() {
           )}
         </div>
 
+        {/* Category */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Category</label>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            disabled={loading}
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-indigo-500 transition-colors"
+          >
+            <option value="Microcontrollers">Microcontrollers</option>
+            <option value="Sensors">Sensors</option>
+            <option value="Modules">Modules</option>
+            <option value="Motors">Motors</option>
+            <option value="Displays">Displays</option>
+            <option value="LEDs">LEDs</option>
+            <option value="Resistors">Resistors</option>
+            <option value="Capacitors">Capacitors</option>
+            <option value="Cables">Cables</option>
+            <option value="Power">Power</option>
+            <option value="Tools">Tools</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+
         {/* Quantity & Low Stock Threshold */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
@@ -176,23 +214,40 @@ function AddInventory() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Low Stock Threshold</label>
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Minimum Stock</label>
             <input
               type="number"
-              value={lowStockThreshold}
-              onChange={(e) => setLowStockThreshold(e.target.value)}
+              value={minimumStock}
+              onChange={(e) => setMinimumStock(e.target.value)}
               disabled={loading}
               min="0"
               step="1"
-              placeholder="5"
               className={`w-full bg-slate-50 border rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-indigo-500 transition-colors ${
-                fieldErrors.lowStockThreshold ? 'border-rose-500/50' : 'border-slate-200'
+                fieldErrors.minimumStock ? 'border-rose-500/50' : 'border-slate-200'
               }`}
             />
-            {fieldErrors.lowStockThreshold ? (
-              <p className="text-[11px] text-rose-450 font-medium">{fieldErrors.lowStockThreshold}</p>
+            {fieldErrors.minimumStock && (
+              <p className="text-[11px] text-rose-450 font-medium">{fieldErrors.minimumStock}</p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Maximum Stock</label>
+            <input
+              type="number"
+              value={maximumStock}
+              onChange={(e) => setMaximumStock(e.target.value)}
+              disabled={loading}
+              min="0"
+              step="1"
+              className={`w-full bg-slate-50 border rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-indigo-500 transition-colors ${
+                fieldErrors.maximumStock ? 'border-rose-500/50' : 'border-slate-200'
+              }`}
+            />
+            {fieldErrors.maximumStock ? (
+              <p className="text-[11px] text-rose-450 font-medium">{fieldErrors.maximumStock}</p>
             ) : (
-              <p className="text-[10px] text-slate-500 font-medium">Default: 5 units. Triggers Low Stock alert when stock $\le$ threshold.</p>
+              <p className="text-[10px] text-slate-500 font-medium">Optional maximum capacity.</p>
             )}
           </div>
         </div>
@@ -327,7 +382,7 @@ function AddInventory() {
                 <img
                   src={image}
                   alt="Item preview"
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-contain p-4"
                 />
               </div>
               <div>

@@ -33,6 +33,10 @@ function Inventory() {
   const routerLocation = useLocation();
   const { isAdmin } = useAuth();
   const searchQuery = searchParams.get('search') || '';
+  const filterCategory = searchParams.get('category') || 'All';
+  const filterStatus = searchParams.get('status') || 'All';
+  const sortOption = searchParams.get('sort') || 'Recently Updated';
+  
   const visualizerRef = useRef(null);
 
   const [items, setItems] = useState([]);
@@ -92,14 +96,23 @@ function Inventory() {
     }
   }, [routerLocation]);
 
-  // Sync Search state with router URL
-  const handleSearchChange = (query) => {
-    if (query) {
-      setSearchParams({ search: query });
-    } else {
-      setSearchParams({});
-    }
+  // Sync Search & Filter state with router URL
+  const updateParams = (newParams) => {
+    const params = new URLSearchParams(searchParams);
+    Object.keys(newParams).forEach(key => {
+      if (newParams[key] && newParams[key] !== 'All') {
+        params.set(key, newParams[key]);
+      } else {
+        params.delete(key);
+      }
+    });
+    setSearchParams(params);
   };
+
+  const handleSearchChange = (query) => updateParams({ search: query });
+  const handleCategoryChange = (cat) => updateParams({ category: cat });
+  const handleStatusChange = (status) => updateParams({ status: status });
+  const handleSortChange = (sort) => updateParams({ sort: sort });
 
   // ITEM -> DRAWER: Clicking an item card
   // Highlights the item and opens its drawer on the storage visualizer WITHOUT hiding other items!
@@ -202,10 +215,31 @@ function Inventory() {
       const unitMatch = item.location?.storageUnit !== undefined && String(item.location.storageUnit).includes(query);
       const boxMatch = item.location?.box !== undefined && String(item.location.box).includes(query);
 
-      return nameMatch || codeMatch || sectionMatch || unitMatch || boxMatch;
+      if (!(nameMatch || codeMatch || sectionMatch || unitMatch || boxMatch)) return false;
+    }
+
+    if (filterCategory !== 'All') {
+      if ((item.category || 'Other') !== filterCategory) return false;
+    }
+
+    if (filterStatus !== 'All') {
+      const minStock = item.minimumStock !== undefined ? item.minimumStock : (item.lowStockThreshold !== undefined ? item.lowStockThreshold : 0);
+      if (filterStatus === 'Out of Stock' && item.quantity > 0) return false;
+      if (filterStatus === 'Low Stock' && (item.quantity === 0 || item.quantity > minStock)) return false;
+      if (filterStatus === 'In Stock' && item.quantity <= minStock) return false;
     }
 
     return true;
+  });
+
+  // Client-side Sorting
+  filteredItems.sort((a, b) => {
+    if (sortOption === 'Name A-Z') return a.name.localeCompare(b.name);
+    if (sortOption === 'Name Z-A') return b.name.localeCompare(a.name);
+    if (sortOption === 'Quantity Low-High') return a.quantity - b.quantity;
+    if (sortOption === 'Quantity High-Low') return b.quantity - a.quantity;
+    // Default 'Recently Updated'
+    return new Date(b.updatedAt) - new Date(a.updatedAt);
   });
 
   // Calculate items assigned to currently open physical drawer
@@ -269,36 +303,84 @@ function Inventory() {
         </div>
       )}
 
-      {/* Prominent Search Bar */}
+      {/* Filters and Controls */}
       {!loading && !error && items.length > 0 && (
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
+          
+          {/* Search */}
+          <div className="relative w-full md:w-1/3">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              placeholder="Search items or location..."
+              className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500/60 rounded-xl pl-10 pr-10 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-colors"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => {
+                  handleSearchChange('');
+                  handleResetStorageView();
+                }}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
           </div>
           
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder="Search items, location code, or storage coordinates (e.g., ESP32, A319)..."
-            className="w-full bg-white border border-slate-200 focus:border-indigo-500/60 rounded-2xl pl-12 pr-12 py-3.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-colors shadow-lg"
-          />
-          
-          {searchQuery && (
-            <button
-              onClick={() => {
-                handleSearchChange('');
-                handleResetStorageView();
-              }}
-              className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-500 hover:text-slate-600 transition-colors"
+          {/* Filters & Sort */}
+          <div className="flex flex-wrap md:flex-nowrap items-center gap-3 w-full md:w-auto">
+            <select
+              value={filterCategory}
+              onChange={(e) => handleCategoryChange(e.target.value)}
+              className="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500 min-w-[120px]"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
+              <option value="All">All Categories</option>
+              <option value="Microcontrollers">Microcontrollers</option>
+              <option value="Sensors">Sensors</option>
+              <option value="Modules">Modules</option>
+              <option value="Motors">Motors</option>
+              <option value="Displays">Displays</option>
+              <option value="LEDs">LEDs</option>
+              <option value="Resistors">Resistors</option>
+              <option value="Capacitors">Capacitors</option>
+              <option value="Cables">Cables</option>
+              <option value="Power">Power</option>
+              <option value="Tools">Tools</option>
+              <option value="Other">Other</option>
+            </select>
+
+            <select
+              value={filterStatus}
+              onChange={(e) => handleStatusChange(e.target.value)}
+              className="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500 min-w-[110px]"
+            >
+              <option value="All">All Statuses</option>
+              <option value="In Stock">🟢 In Stock</option>
+              <option value="Low Stock">🟠 Low Stock</option>
+              <option value="Out of Stock">🔴 Out of Stock</option>
+            </select>
+
+            <select
+              value={sortOption}
+              onChange={(e) => handleSortChange(e.target.value)}
+              className="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500 min-w-[130px]"
+            >
+              <option value="Recently Updated">Recently Updated</option>
+              <option value="Name A-Z">Name A-Z</option>
+              <option value="Name Z-A">Name Z-A</option>
+              <option value="Quantity Low-High">Quantity Low-High</option>
+              <option value="Quantity High-Low">Quantity High-Low</option>
+            </select>
+          </div>
         </div>
       )}
 

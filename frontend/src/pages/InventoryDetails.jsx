@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { getInventoryItemById, getItemUsageRecords, deleteInventoryItem } from '../services/inventoryService';
 import LocationDisplay from '../components/inventory/LocationDisplay';
 import AddStockModal from '../components/inventory/AddStockModal';
+import AdjustStockModal from '../components/inventory/AdjustStockModal';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -26,6 +27,9 @@ function InventoryDetails() {
   // Add Stock Modal State
   const [isAddStockOpen, setIsAddStockOpen] = useState(false);
   const [flashMessage, setFlashMessage] = useState('');
+
+  // Adjust Stock Modal State
+  const [isAdjustStockOpen, setIsAdjustStockOpen] = useState(false);
 
   const fetchItemDetails = async () => {
     setLoading(true);
@@ -99,6 +103,13 @@ function InventoryDetails() {
     setTimeout(() => setFlashMessage(''), 5000);
   };
 
+  const handleAdjustStockSuccess = (msg) => {
+    setFlashMessage(msg);
+    fetchItemDetails();
+    fetchItemUsage();
+    setTimeout(() => setFlashMessage(''), 5000);
+  };
+
   const handleDeleteItem = async () => {
     if (!window.confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
       return;
@@ -156,17 +167,18 @@ function InventoryDetails() {
   const { name, image, quantity, location: itemLocation, createdAt, updatedAt } = item;
 
   // Stock Badge parameters
+  const minStock = item.minimumStock !== undefined ? item.minimumStock : (item.lowStockThreshold !== undefined ? item.lowStockThreshold : 0);
   let stockBadgeClass = '';
   let stockText = '';
-  if (quantity > 5) {
-    stockBadgeClass = 'bg-emerald-50 text-emerald-600 border-emerald-200';
-    stockText = `${quantity} available (In Stock)`;
-  } else if (quantity > 0) {
+  if (quantity === 0) {
+    stockBadgeClass = 'bg-rose-50 text-rose-450 border-rose-200';
+    stockText = '0 available (Out of Stock)';
+  } else if (quantity <= minStock) {
     stockBadgeClass = 'bg-amber-50 text-amber-600 border-amber-200 animate-pulse';
     stockText = `${quantity} available (Low Stock)`;
   } else {
-    stockBadgeClass = 'bg-rose-50 text-rose-450 border-rose-200';
-    stockText = '0 available (Out of Stock)';
+    stockBadgeClass = 'bg-emerald-50 text-emerald-600 border-emerald-200';
+    stockText = `${quantity} available (In Stock)`;
   }
 
   const formatDate = (dateStr) => {
@@ -201,7 +213,17 @@ function InventoryDetails() {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" />
               </svg>
-              <span>+ Add Stock</span>
+                <span>Add Stock</span>
+            </button>
+
+            <button
+              onClick={() => setIsAdjustStockOpen(true)}
+              className="inline-flex items-center gap-1.5 bg-indigo-100 hover:bg-indigo-50 text-indigo-700 font-extrabold text-xs px-4 py-2 rounded-xl transition-all border border-indigo-200 cursor-pointer"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              <span>Adjust</span>
             </button>
 
             <button
@@ -268,7 +290,7 @@ function InventoryDetails() {
                   e.target.style.display = 'none';
                   e.target.nextSibling.style.display = 'flex';
                 }}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain p-6"
               />
             ) : null}
             <div
@@ -285,6 +307,11 @@ function InventoryDetails() {
           {/* Texts & Stats content */}
           <div className="p-6 sm:p-8 space-y-6">
             <div className="space-y-3">
+              {item.category && item.category !== 'Other' && (
+                <span className="inline-block bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  {item.category}
+                </span>
+              )}
               <h3 className="text-xl font-bold text-slate-900 tracking-tight leading-tight">{name}</h3>
               
               <div className="flex">
@@ -294,6 +321,17 @@ function InventoryDetails() {
                   }`}></span>
                   {stockText}
                 </span>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-200 grid grid-cols-2 gap-4 text-xs">
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <span className="block text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Min Stock</span>
+                <span className="font-mono text-slate-900 font-bold text-sm">{minStock}</span>
+              </div>
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <span className="block text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Max Stock</span>
+                <span className="font-mono text-slate-900 font-bold text-sm">{item.maximumStock || 'N/A'}</span>
               </div>
             </div>
 
@@ -318,7 +356,7 @@ function InventoryDetails() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" />
                 </svg>
-                <span>+ Add Stock</span>
+                  <span>Add Stock</span>
               </button>
               
               <Link
@@ -395,12 +433,14 @@ function InventoryDetails() {
                       <span className={`inline-flex items-center gap-1 text-[11px] font-black uppercase px-2 py-0.5 rounded ${
                         isStockIn
                           ? 'bg-emerald-100 text-emerald-600 border border-emerald-300'
+                          : rec.type === 'adjustment'
+                          ? 'bg-amber-100 text-amber-700 border border-amber-300'
                           : 'bg-indigo-100 text-indigo-600 border border-indigo-300'
                       }`}>
-                        {isStockIn ? '🟢 Stock Added' : '🔴 Withdrawal'}
+                        {isStockIn ? '🟢 Stock Added' : rec.type === 'adjustment' ? '🟠 Adjustment' : '🔴 Withdrawal'}
                       </span>
 
-                      {isStockIn ? (
+                      {isStockIn || rec.type === 'adjustment' ? (
                         <span className="text-xs font-bold text-slate-600">
                           Reason: <span className="text-slate-900">{rec.reason}</span>
                         </span>
@@ -430,9 +470,9 @@ function InventoryDetails() {
 
                   <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0">
                     <span className={`text-xs font-bold font-mono ${
-                      isStockIn ? 'text-emerald-600' : 'text-rose-600'
+                      isStockIn ? 'text-emerald-600' : rec.type === 'adjustment' ? 'text-amber-600' : 'text-rose-600'
                     }`}>
-                      {isStockIn ? `+${rec.quantity}` : `−${rec.quantity}`} {rec.quantity === 1 ? 'unit' : 'units'}
+                      {isStockIn ? `+${rec.quantity}` : rec.type === 'adjustment' ? `${rec.quantity > 0 ? '+' : ''}${rec.quantity}` : `−${rec.quantity}`} {Math.abs(rec.quantity) === 1 ? 'unit' : 'units'}
                     </span>
                     <span className="text-xs text-slate-500 font-mono">
                       {formatDate(rec.createdAt)}
@@ -451,6 +491,14 @@ function InventoryDetails() {
         isOpen={isAddStockOpen}
         onClose={() => setIsAddStockOpen(false)}
         onSuccess={handleAddStockSuccess}
+      />
+
+      {/* Adjust Stock Modal */}
+      <AdjustStockModal
+        item={item}
+        isOpen={isAdjustStockOpen}
+        onClose={() => setIsAdjustStockOpen(false)}
+        onSuccess={handleAdjustStockSuccess}
       />
     </div>
   );

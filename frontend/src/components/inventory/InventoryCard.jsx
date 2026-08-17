@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onAddStock }) {
   const { _id, name, image, quantity, location } = item;
@@ -45,25 +45,28 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
     }
   };
 
-  // Determine stock quantity indicator styling using lowStockThreshold
-  const threshold = item.lowStockThreshold !== undefined ? item.lowStockThreshold : 5;
+  // Determine stock quantity indicator styling using minimumStock
+  const minStock = item.minimumStock !== undefined ? item.minimumStock : (item.lowStockThreshold !== undefined ? item.lowStockThreshold : 0);
   let stockBadgeClass = '';
   let stockStatusLabel = '';
   
-  if (quantity > threshold) {
-    stockBadgeClass = 'bg-emerald-50 text-emerald-600 border-emerald-200';
-    stockStatusLabel = 'IN STOCK';
-  } else if (quantity > 0) {
+  if (quantity === 0) {
+    stockBadgeClass = 'bg-rose-50 text-rose-600 border-rose-200';
+    stockStatusLabel = 'OUT OF STOCK';
+  } else if (quantity <= minStock) {
     stockBadgeClass = 'bg-amber-50 text-amber-600 border-amber-200';
     stockStatusLabel = 'LOW STOCK';
   } else {
-    stockBadgeClass = 'bg-rose-50 text-rose-600 border-rose-200';
-    stockStatusLabel = 'OUT OF STOCK';
+    stockBadgeClass = 'bg-emerald-50 text-emerald-600 border-emerald-200';
+    stockStatusLabel = 'IN STOCK';
   }
+
+  const navigate = useNavigate();
 
   return (
     <div
       onClick={() => onLocate && onLocate(item)}
+      onDoubleClick={() => navigate(`/inventory/${_id}`)}
       className={`
         bg-white border-2 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col group cursor-pointer select-none
         ${isLocated
@@ -82,7 +85,7 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
               e.target.style.display = 'none';
               e.target.nextSibling.style.display = 'flex';
             }}
-            className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
+            className="w-full h-full object-contain group-hover:scale-[1.03] transition-transform duration-300 p-4"
           />
         ) : null}
         
@@ -102,6 +105,11 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
       <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
         {/* Title and Stock badge */}
         <div className="space-y-2">
+          {item.category && item.category !== 'Other' && (
+            <span className="inline-block bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+              {item.category}
+            </span>
+          )}
           <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-2 min-h-[40px]">
             {highlightText(name, searchQuery)}
           </h4>
@@ -109,7 +117,7 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
           <div className="flex items-center gap-2">
             <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-extrabold border ${stockBadgeClass}`}>
               <span className={`w-1.5 h-1.5 rounded-full shadow-sm ${
-                quantity > threshold ? 'bg-emerald-50' : quantity > 0 ? 'bg-amber-50' : 'bg-rose-50'
+                quantity > minStock ? 'bg-emerald-50' : quantity > 0 ? 'bg-amber-50' : 'bg-rose-50'
               }`}></span>
               <span>{quantity} available &bull; {stockStatusLabel}</span>
             </span>
@@ -198,7 +206,7 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
               <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
               </svg>
-              <span className="truncate">+ STOCK</span>
+              <span className="truncate">STOCK</span>
             </button>
           ) : (
             <div />

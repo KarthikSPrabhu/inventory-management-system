@@ -45,7 +45,7 @@ const validateLocationCode = (location) => {
 // @access  Public
 exports.createInventoryItem = async (req, res) => {
   try {
-    const { name, image, quantity, location, lowStockThreshold } = req.body;
+    const { name, image, quantity, location, lowStockThreshold, category, minimumStock, maximumStock } = req.body;
     
     // Explicit Validation Check before Mongoose schema to return clear errors
     if (!name || String(name).trim().length === 0) {
@@ -66,15 +66,31 @@ exports.createInventoryItem = async (req, res) => {
     }
 
     let thresholdVal = 5;
-    if (lowStockThreshold !== undefined) {
-      const t = Number(lowStockThreshold);
+    if (minimumStock !== undefined) {
+      const t = Number(minimumStock);
       if (isNaN(t) || !Number.isInteger(t) || t < 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'Low stock threshold must be a non-negative integer'
-        });
+        return res.status(400).json({ success: false, message: 'Minimum stock must be a non-negative integer' });
       }
       thresholdVal = t;
+    } else if (lowStockThreshold !== undefined) {
+      const t = Number(lowStockThreshold);
+      if (isNaN(t) || !Number.isInteger(t) || t < 0) {
+        return res.status(400).json({ success: false, message: 'Low stock threshold must be a non-negative integer' });
+      }
+      thresholdVal = t;
+    }
+
+    let maxStockVal = 0;
+    if (maximumStock !== undefined) {
+      const max = Number(maximumStock);
+      if (isNaN(max) || !Number.isInteger(max) || max < 0) {
+        return res.status(400).json({ success: false, message: 'Maximum stock must be a non-negative integer' });
+      }
+      maxStockVal = max;
+    }
+
+    if (maxStockVal > 0 && thresholdVal > maxStockVal) {
+      return res.status(400).json({ success: false, message: 'Minimum stock cannot be greater than maximum stock' });
     }
     
     const locationCheck = validateLocationCode(location);
@@ -90,7 +106,10 @@ exports.createInventoryItem = async (req, res) => {
       image,
       quantity,
       location,
-      lowStockThreshold: thresholdVal
+      lowStockThreshold: thresholdVal,
+      minimumStock: thresholdVal,
+      maximumStock: maxStockVal,
+      category: category ? String(category).trim() : 'Other'
     });
     
     await item.save();
@@ -120,7 +139,66 @@ exports.createInventoryItem = async (req, res) => {
 // @access  Public
 exports.getInventoryItems = async (req, res) => {
   try {
-    const items = await InventoryItem.find({}).sort({ createdAt: -1 });
+    const { page, limit, search, category, status, sort } = req.query;
+
+    const query = { isArchived: { $ne: true } };
+
+    if (search) {
+      const searchRegex = new RegExp(String(search).trim().replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i');
+      query.$or = [
+        { name: searchRegex },
+        { 'location.code': searchRegex },
+        { 'location.section': searchRegex },
+        { category: searchRegex }
+      ];
+    }
+
+    if (category && category !== 'All') {
+      query.category = category;
+    }
+
+    if (status && status !== 'All') {
+      if (status === 'Out of Stock') {
+        query.quantity = 0;
+      } else if (status === 'Low Stock') {
+        query.quantity = { $gt: 0 };
+        query.$expr = { $lte: ['$quantity', '$minimumStock'] };
+      } else if (status === 'In Stock') {
+        query.$expr = { $gt: ['$quantity', '$minimumStock'] };
+      }
+    }
+
+    let sortObj = { createdAt: -1 };
+    if (sort) {
+      if (sort === 'Name A-Z') sortObj = { name: 1 };
+      else if (sort === 'Name Z-A') sortObj = { name: -1 };
+      else if (sort === 'Quantity Low-High') sortObj = { quantity: 1 };
+      else if (sort === 'Quantity High-Low') sortObj = { quantity: -1 };
+      else if (sort === 'Recently Updated') sortObj = { updatedAt: -1 };
+    }
+
+    // Pagination
+    if (page && limit) {
+      const pageNum = Math.max(1, parseInt(page, 10));
+      const limitNum = Math.max(1, parseInt(limit, 10));
+      const skip = (pageNum - 1) * limitNum;
+
+      const items = await InventoryItem.find(query).sort(sortObj).skip(skip).limit(limitNum);
+      const total = await InventoryItem.countDocuments(query);
+      const totalPages = Math.ceil(total / limitNum);
+
+      return res.status(200).json({
+        success: true,
+        count: items.length,
+        total,
+        page: pageNum,
+        totalPages,
+        data: items
+      });
+    }
+
+    // If no pagination requested, return all (for backward compatibility)
+    const items = await InventoryItem.find(query).sort(sortObj);
     res.status(200).json({
       success: true,
       data: items
@@ -174,7 +252,7 @@ exports.getInventoryItemById = async (req, res) => {
 exports.updateInventoryItem = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, image, quantity, location, lowStockThreshold } = req.body;
+    const { name, image, quantity, location, lowStockThreshold, category, minimumStock, maximumStock } = req.body;
     
     if (!isValidId(id)) {
       return res.status(400).json({
@@ -201,13 +279,22 @@ exports.updateInventoryItem = async (req, res) => {
       }
     }
 
-    if (lowStockThreshold !== undefined) {
+    if (minimumStock !== undefined) {
+      const t = Number(minimumStock);
+      if (isNaN(t) || !Number.isInteger(t) || t < 0) {
+        return res.status(400).json({ success: false, message: 'Minimum stock must be a non-negative integer' });
+      }
+    } else if (lowStockThreshold !== undefined) {
       const t = Number(lowStockThreshold);
       if (isNaN(t) || !Number.isInteger(t) || t < 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'Low stock threshold must be a non-negative integer'
-        });
+        return res.status(400).json({ success: false, message: 'Low stock threshold must be a non-negative integer' });
+      }
+    }
+
+    if (maximumStock !== undefined) {
+      const max = Number(maximumStock);
+      if (isNaN(max) || !Number.isInteger(max) || max < 0) {
+        return res.status(400).json({ success: false, message: 'Maximum stock must be a non-negative integer' });
       }
     }
     
@@ -235,7 +322,19 @@ exports.updateInventoryItem = async (req, res) => {
     if (image !== undefined) item.image = image;
     if (quantity !== undefined) item.quantity = quantity;
     if (location !== undefined) item.location = location;
-    if (lowStockThreshold !== undefined) item.lowStockThreshold = Number(lowStockThreshold);
+    if (category !== undefined) item.category = String(category).trim();
+    if (minimumStock !== undefined) {
+      item.minimumStock = Number(minimumStock);
+      item.lowStockThreshold = Number(minimumStock); // Keep in sync
+    } else if (lowStockThreshold !== undefined) {
+      item.lowStockThreshold = Number(lowStockThreshold);
+      item.minimumStock = Number(lowStockThreshold);
+    }
+    if (maximumStock !== undefined) item.maximumStock = Number(maximumStock);
+
+    if (item.maximumStock > 0 && item.minimumStock > item.maximumStock) {
+      return res.status(400).json({ success: false, message: 'Minimum stock cannot be greater than maximum stock' });
+    }
     
     await item.save();
     
@@ -287,9 +386,14 @@ exports.deleteInventoryItem = async (req, res) => {
     const hasStockIn = await InventoryStockIn.exists({ item: id });
 
     if (hasUsage || hasStockIn) {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot delete "${item.name}" because it has historical usage or restocking activity records. Set quantity to 0 instead to preserve data integrity.`
+      // Archive instead of hard delete
+      item.isArchived = true;
+      await item.save();
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Item has historical activity and was successfully archived.',
+        data: { id, archived: true }
       });
     }
     

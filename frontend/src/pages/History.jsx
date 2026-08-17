@@ -165,6 +165,7 @@ function History() {
               <option value="all">All Activity</option>
               <option value="stock_in">🟢 Stock In</option>
               <option value="usage">🔴 Stock Out</option>
+              <option value="adjustment">🟠 Adjustment</option>
             </select>
           </div>
 
@@ -233,9 +234,11 @@ function History() {
                 <span className={`px-2.5 py-0.5 rounded-lg text-[11px] font-extrabold uppercase border ${
                   activityType === 'stock_in' 
                     ? 'bg-emerald-100 text-emerald-600 border-emerald-300'
+                    : activityType === 'adjustment'
+                    ? 'bg-amber-100 text-amber-700 border-amber-300'
                     : 'bg-rose-100 text-rose-600 border-rose-300'
                 }`}>
-                  {activityType === 'stock_in' ? '🟢 Stock In' : '🔴 Stock Out'}
+                  {activityType === 'stock_in' ? '🟢 Stock In' : activityType === 'adjustment' ? '🟠 Adjustment' : '🔴 Stock Out'}
                 </span>
               )}
               {searchTerm && (
@@ -315,6 +318,7 @@ function History() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {historyRecords.map((record) => {
               const isStockIn = record.type === 'stock_in';
+              const isAdjustment = record.type === 'adjustment';
               const itemName = record.item?.name || 'Inventory Item';
               const itemId = record.item?._id;
               const projectName = record.project?.name || 'Unassigned Project';
@@ -327,7 +331,7 @@ function History() {
                 <div
                   key={record._id}
                   className={`bg-white border-2 rounded-2xl p-5 hover:border-slate-300 transition-all shadow-md flex flex-col justify-between space-y-4 ${
-                    isStockIn ? 'border-emerald-200' : 'border-slate-200'
+                    isStockIn ? 'border-emerald-200' : isAdjustment ? 'border-amber-200' : 'border-slate-200'
                   }`}
                 >
                   <div className="space-y-3">
@@ -354,20 +358,22 @@ function History() {
                       <span className={`px-3 py-1 rounded-xl text-xs font-black shrink-0 font-mono border ${
                         isStockIn
                           ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                          : isAdjustment
+                          ? 'bg-amber-50 text-amber-700 border-amber-200'
                           : 'bg-rose-50 text-rose-600 border-rose-200'
                       }`}>
-                        {isStockIn ? `+${qty}` : `−${qty}`} {qty === 1 ? 'unit' : 'units'}
+                        {isStockIn ? `+${qty}` : isAdjustment ? `${qty > 0 ? '+' : ''}${qty}` : `−${qty}`} {Math.abs(qty) === 1 ? 'unit' : 'units'}
                       </span>
                     </div>
 
                     {/* Transaction Details (Reason for Stock In vs Project for Stock Out) */}
                     <div className="bg-slate-100 border border-slate-200 p-3 rounded-xl flex items-center justify-between text-xs">
-                      {isStockIn ? (
+                      {isStockIn || isAdjustment ? (
                         <>
                           <span className="text-slate-500 font-semibold flex items-center gap-1">
-                            <span className="w-2 h-2 rounded-full bg-emerald-400"></span> Stock Added:
+                            <span className={`w-2 h-2 rounded-full ${isAdjustment ? 'bg-amber-400' : 'bg-emerald-400'}`}></span> {isAdjustment ? 'Adjustment' : 'Stock Added'}:
                           </span>
-                          <span className="font-bold text-emerald-600">Reason: {record.reason}</span>
+                          <span className={`font-bold ${isAdjustment ? 'text-amber-700' : 'text-emerald-600'}`}>Reason: {record.reason}</span>
                         </>
                       ) : (
                         <>

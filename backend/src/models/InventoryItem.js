@@ -83,6 +83,33 @@ const InventoryItemSchema = new mongoose.Schema({
       validator: Number.isInteger,
       message: 'Low stock threshold must be an integer'
     }
+  },
+  category: {
+    type: String,
+    default: 'Other',
+    trim: true
+  },
+  minimumStock: {
+    type: Number,
+    min: [0, 'Minimum stock cannot be negative'],
+    default: 0,
+    validate: {
+      validator: Number.isInteger,
+      message: 'Minimum stock must be an integer'
+    }
+  },
+  maximumStock: {
+    type: Number,
+    min: [0, 'Maximum stock cannot be negative'],
+    default: 0,
+    validate: {
+      validator: Number.isInteger,
+      message: 'Maximum stock must be an integer'
+    }
+  },
+  isArchived: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true
@@ -92,5 +119,7 @@ const InventoryItemSchema = new mongoose.Schema({
 InventoryItemSchema.index({ name: 1 });
 InventoryItemSchema.index({ 'location.code': 1 });
 InventoryItemSchema.index({ quantity: 1 });
+InventoryItemSchema.index({ category: 1 });
+InventoryItemSchema.index({ isArchived: 1 });
 
 module.exports = mongoose.model('InventoryItem', InventoryItemSchema);

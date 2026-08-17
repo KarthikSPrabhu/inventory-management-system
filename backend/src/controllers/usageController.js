@@ -1,5 +1,6 @@
 const InventoryUsage = require('../models/InventoryUsage');
 const InventoryStockIn = require('../models/InventoryStockIn');
+const InventoryAdjustment = require('../models/InventoryAdjustment');
 const InventoryItem = require('../models/InventoryItem');
 const Project = require('../models/Project');
 const mongoose = require('mongoose');
@@ -66,30 +67,26 @@ exports.createUsage = async (req, res) => {
     }
 
     try {
-      const itemQuery = InventoryItem.findById(itemId);
-      if (session) itemQuery.session(session);
-      const item = await itemQuery;
+      const item = await InventoryItem.findOneAndUpdate(
+        { _id: itemId, quantity: { $gte: qty } },
+        { $inc: { quantity: -qty } },
+        { new: true, session: session || undefined }
+      );
 
       if (!item) {
+        const checkItem = await InventoryItem.findById(itemId).session(session || undefined);
         if (session) await session.abortTransaction();
-        return res.status(404).json({
-          success: false,
-          message: 'Inventory item not found'
-        });
-      }
-
-      // 6. Verify sufficient quantity in MongoDB Atlas
-      if (item.quantity < qty) {
-        if (session) await session.abortTransaction();
+        if (!checkItem) {
+          return res.status(404).json({
+            success: false,
+            message: 'Inventory item not found'
+          });
+        }
         return res.status(400).json({
           success: false,
-          message: `Insufficient inventory. Only ${item.quantity} units are available.`
+          message: `Insufficient inventory. Only ${checkItem.quantity} units are available.`
         });
       }
-
-      // 7. Server-side quantity reduction & Usage record creation
-      item.quantity -= qty;
-      await item.save(session ? { session } : undefined);
 
       const usage = new InventoryUsage({
         item: item._id,
@@ -147,7 +144,7 @@ exports.getAllUsage = async (req, res) => {
       itemId = '',
       projectId = '',
       dateRange = 'all',
-      activityType = 'all' // 'all', 'stock_in', 'usage'
+      activityType = 'all' // 'all', 'stock_in', 'usage', 'adjustment'
     } = req.query;
 
     const baseQuery = {};
@@ -187,6 +184,7 @@ exports.getAllUsage = async (req, res) => {
 
     let usagesList = [];
     let stockInsList = [];
+    let adjustmentsList = [];
 
     // Fetch InventoryUsage records if activityType is 'all' or 'usage'
     if (activityType === 'all' || activityType === 'usage') {
@@ -250,8 +248,38 @@ exports.getAllUsage = async (req, res) => {
       }));
     }
 
+    // Fetch InventoryAdjustment records if activityType is 'all' or 'adjustment'
+    if ((activityType === 'all' || activityType === 'adjustment') && (!projectId || !isValidId(projectId))) {
+      const adjustQuery = { ...baseQuery };
+
+      if (trimmedSearch) {
+        const searchRegex = new RegExp(trimmedSearch.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i');
+        adjustQuery.$or = [
+          { reason: searchRegex },
+          { notes: searchRegex },
+          { item: { $in: matchingItemIds } }
+        ];
+      }
+
+      const adjustments = await InventoryAdjustment.find(adjustQuery)
+        .populate('item', 'name image location quantity')
+        .sort({ createdAt: -1 });
+
+      adjustmentsList = adjustments.map(a => ({
+        _id: a._id,
+        type: 'adjustment',
+        item: a.item,
+        quantity: a.difference, // store difference as quantity
+        previousQuantity: a.previousQuantity,
+        newQuantity: a.newQuantity,
+        reason: a.reason,
+        notes: a.notes,
+        createdAt: a.createdAt
+      }));
+    }
+
     // Combine & Sort by createdAt DESC
-    const combined = [...usagesList, ...stockInsList];
+    const combined = [...usagesList, ...stockInsList, ...adjustmentsList];
     combined.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     const total = combined.length;
@@ -301,12 +329,15 @@ exports.getItemUsage = async (req, res) => {
       });
     }
 
-    const [usages, stockIns] = await Promise.all([
+    const [usages, stockIns, adjustments] = await Promise.all([
       InventoryUsage.find({ item: itemId })
         .populate('item', 'name image location quantity')
         .populate('project', 'name status')
         .sort({ createdAt: -1 }),
       InventoryStockIn.find({ item: itemId })
+        .populate('item', 'name image location quantity')
+        .sort({ createdAt: -1 }),
+      InventoryAdjustment.find({ item: itemId })
         .populate('item', 'name image location quantity')
         .sort({ createdAt: -1 })
     ]);
@@ -344,7 +375,23 @@ exports.getItemUsage = async (req, res) => {
       };
     });
 
-    const combinedActivity = [...usageRecords, ...stockInRecords];
+    let totalAdjusted = 0;
+    const adjustmentRecords = adjustments.map(a => {
+      totalAdjusted += Number(a.difference) || 0;
+      return {
+        _id: a._id,
+        type: 'adjustment',
+        item: a.item,
+        quantity: a.difference,
+        previousQuantity: a.previousQuantity,
+        newQuantity: a.newQuantity,
+        reason: a.reason,
+        notes: a.notes,
+        createdAt: a.createdAt
+      };
+    });
+
+    const combinedActivity = [...usageRecords, ...stockInRecords, ...adjustmentRecords];
     combinedActivity.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     res.status(200).json({
@@ -353,6 +400,7 @@ exports.getItemUsage = async (req, res) => {
         currentStock: item.quantity,
         totalAdded: totalUnitsAdded,
         totalUnitsUsed,
+        totalAdjusted,
         projectsCount: uniqueProjects.size
       },
       data: combinedActivity
