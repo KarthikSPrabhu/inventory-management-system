@@ -32,7 +32,23 @@ const envOrigins = (process.env.CLIENT_URL || process.env.FRONTEND_URL || proces
   .map(o => o.trim())
   .filter(Boolean);
 
-const allowedOriginsSet = new Set([...defaultAllowedOrigins, ...envOrigins]);
+const os = require('os');
+const localIPs = [];
+try {
+  const nets = os.networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      if (net.family === 'IPv4' && !net.internal) {
+        localIPs.push(`http://${net.address}:5173`);
+        localIPs.push(`http://${net.address}:5000`);
+      }
+    }
+  }
+} catch (e) {
+  // Ignore errors reading network interfaces
+}
+
+const allowedOriginsSet = new Set([...defaultAllowedOrigins, ...envOrigins, ...localIPs]);
 
 const isAllowedOrigin = (origin) => {
   if (!origin) return true; // Allow requests with no origin (curl, postman, mobile apps)
@@ -58,6 +74,7 @@ const isAllowedOrigin = (origin) => {
 
 app.use(cors({
   origin: (origin, callback) => {
+    console.log(`[CORS DEBUG] Incoming Origin:`, origin);
     if (isAllowedOrigin(origin)) {
       callback(null, true);
     } else {
