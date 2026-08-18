@@ -160,6 +160,10 @@ app.use('/api/stock-in', stockInRoutes);
 const analyticsRoutes = require('./routes/analyticsRoutes');
 app.use('/api/analytics', analyticsRoutes);
 
+// Register Dashboard REST routes
+const dashboardRoutes = require('./routes/dashboardRoutes');
+app.use('/api/dashboard', dashboardRoutes);
+
 // Register Buy List REST routes
 const buyListRoutes = require('./routes/buyListRoutes');
 app.use('/api/buy-list', buyListRoutes);

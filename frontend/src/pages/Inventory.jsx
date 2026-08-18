@@ -5,6 +5,7 @@ import InventoryCard from '../components/inventory/InventoryCard';
 import InventoryEmptyState from '../components/inventory/InventoryEmptyState';
 import StorageVisualizer from '../components/storage/StorageVisualizer';
 import StorageLocationPanel from '../components/storage/StorageLocationPanel';
+import Dashboard from '../components/dashboard/Dashboard';
 import TakeItemModal from '../components/inventory/TakeItemModal';
 import AddStockModal from '../components/inventory/AddStockModal';
 import MoveItemModal from '../components/inventory/MoveItemModal';
@@ -43,7 +44,7 @@ function Inventory() {
   const sortOption = searchParams.get('sort') || 'Recently Updated';
   
   const visualizerRef = useRef(null);
-
+  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' or 'catalog'
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -369,8 +370,32 @@ function Inventory() {
         </div>
       )}
 
-      {/* Filters and Controls */}
-      {!loading && !error && items.length > 0 && (
+      {/* Workspace Tabs */}
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+        <button
+          onClick={() => setActiveTab('dashboard')}
+          className={`text-xs font-bold px-4 py-2 rounded-t-lg transition-colors ${
+            activeTab === 'dashboard'
+              ? 'bg-slate-100 text-indigo-700 border-b-2 border-indigo-600'
+              : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+          }`}
+        >
+          Intelligence Dashboard
+        </button>
+        <button
+          onClick={() => setActiveTab('catalog')}
+          className={`text-xs font-bold px-4 py-2 rounded-t-lg transition-colors ${
+            activeTab === 'catalog'
+              ? 'bg-slate-100 text-indigo-700 border-b-2 border-indigo-600'
+              : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+          }`}
+        >
+          Inventory Catalog
+        </button>
+      </div>
+
+      {/* Filters and Controls (Only show if catalog is active) */}
+      {activeTab === 'catalog' && !loading && !error && items.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
           
           {/* Search */}
@@ -500,10 +525,23 @@ function Inventory() {
             />
           </div>
 
-          {/* INVENTORY CATALOG LIST: Appears SECOND on mobile (order-2), LEFT COLUMN on desktop (order-1, lg:col-span-7) */}
-          <div className="order-2 lg:order-1 lg:col-span-7 space-y-4 w-full">
-            <div className="flex items-center justify-between px-1">
-              <div className="flex items-center gap-2">
+          {/* LEFT COLUMN: DASHBOARD OR CATALOG */}
+          {activeTab === 'dashboard' ? (
+            <div className="order-2 lg:order-1 lg:col-span-7 space-y-4 w-full">
+              <Dashboard 
+                items={items} 
+                tree={tree} 
+                isAdmin={isAdmin} 
+                onAction={(type) => {
+                  // e.g. Navigate to /buy-list or open modals
+                  if (type === 'catalog') setActiveTab('catalog');
+                }} 
+              />
+            </div>
+          ) : (
+            <div className="order-2 lg:order-1 lg:col-span-7 space-y-4 w-full">
+              <div className="flex items-center justify-between px-1">
+                <div className="flex items-center gap-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
                   {isRackBoxFilter && activeBoxDrawer > 0 ? `Box ${activeBoxDrawer} Contents` : 'Inventory Catalog'}
                 </span>
@@ -557,7 +595,7 @@ function Inventory() {
               </div>
             )}
           </div>
-
+          )}
         </div>
       )}
 
