@@ -71,9 +71,27 @@ const InventoryItemSchema = new mongoose.Schema({
       message: 'Quantity must be an integer'
     }
   },
+  locations: [{
+    node: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'StorageNode',
+      required: true
+    },
+    quantity: {
+      type: Number,
+      required: true,
+      min: [0, 'Location quantity cannot be negative'],
+      validate: {
+        validator: Number.isInteger,
+        message: 'Location quantity must be an integer'
+      }
+    }
+  }],
+  // For backwards compatibility and migration state tracker:
+  // If location exists, it means the item hasn't been migrated yet.
   location: {
     type: LocationSchema,
-    required: [true, 'Location parameters are required']
+    required: false // No longer strictly required to allow migration
   },
   lowStockThreshold: {
     type: Number,
@@ -121,5 +139,15 @@ InventoryItemSchema.index({ 'location.code': 1 });
 InventoryItemSchema.index({ quantity: 1 });
 InventoryItemSchema.index({ category: 1 });
 InventoryItemSchema.index({ isArchived: 1 });
+
+InventoryItemSchema.index({ 'locations.node': 1 });
+
+// Ensure total quantity matches the sum of locations
+InventoryItemSchema.pre('save', function(next) {
+  if (this.locations && this.locations.length > 0) {
+    this.quantity = this.locations.reduce((sum, loc) => sum + (loc.quantity || 0), 0);
+  }
+  next();
+});
 
 module.exports = mongoose.model('InventoryItem', InventoryItemSchema);

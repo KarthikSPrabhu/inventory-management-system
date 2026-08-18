@@ -1,10 +1,25 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useStorage } from '../../context/StorageContext';
+import { getLocationDisplayId, resolveNodeHierarchy } from '../../utils/locationUtils';
 
-function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onAddStock }) {
-  const { _id, name, image, quantity, location } = item;
-  const { section, storageUnit, box, code } = location || {};
+function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onAddStock, onMoveItem }) {
+  const { _id, name, image, quantity, locations, location: legacyLocation } = item;
+  const { tree } = useStorage();
   const [copied, setCopied] = useState(false);
+
+  // Extract primary node hierarchy info
+  const primaryNode = locations && locations.length > 0 ? locations[0].node : null;
+  const resolved = resolveNodeHierarchy(primaryNode, tree);
+  
+  const displayCode = getLocationDisplayId(primaryNode, tree) || legacyLocation?.code || '';
+  const sectionCode = resolved?.section || legacyLocation?.section || 'A';
+  const unitNum = resolved?.primaryUnit !== null && resolved?.primaryUnit !== undefined
+    ? String(resolved.primaryUnit).padStart(2, '0')
+    : (legacyLocation?.storageUnit ? String(legacyLocation.storageUnit).padStart(2, '0') : '-');
+  const boxNum = resolved?.containers && resolved.containers.length > 0
+    ? resolved.containers.map(c => c.code).join(', ')
+    : (legacyLocation?.box ? String(legacyLocation.box) : '-');
 
   // Text highlighting function to wrap matches in styled mark tags
   const highlightText = (text, query) => {
@@ -34,10 +49,10 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
   const handleCopy = async (e) => {
     e.preventDefault();
     e.stopPropagation(); // Avoid triggering locate
-    if (!code) return;
+    if (!displayCode) return;
     
     try {
-      await navigator.clipboard.writeText(code);
+      await navigator.clipboard.writeText(displayCode);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
@@ -132,20 +147,26 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
             {/* Badge + Copy Trigger */}
             <div className="flex items-center gap-1.5">
               <span className="font-mono text-xs font-bold text-indigo-600 bg-slate-50 px-2.5 py-0.5 rounded-lg border border-slate-200">
-                📍 {highlightText(code, searchQuery)}
+                📍 {displayCode ? highlightText(displayCode, searchQuery) : 'Unassigned'}
               </span>
+
+              {locations && locations.length > 1 && (
+                <span className="text-[10px] font-extrabold text-indigo-500 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">
+                  +{locations.length - 1}
+                </span>
+              )}
               
               <button
                 onClick={handleCopy}
                 title="Copy location code"
                 className={`p-1.5 rounded-md border transition-colors flex items-center justify-center ${
                   copied 
-                    ? 'bg-emerald-50 text-emerald-450 border-emerald-200' 
-                    : 'bg-slate-50 hover:bg-slate-100 text-slate-550 hover:text-slate-600 border-slate-200 hover:border-slate-300'
+                    ? 'bg-emerald-50 text-emerald-600 border-emerald-200' 
+                    : 'bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-600 border-slate-200 hover:border-slate-300'
                 }`}
               >
                 {copied ? (
-                  <svg className="w-3.5 h-3.5 text-emerald-450" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
                   </svg>
                 ) : (
@@ -159,11 +180,11 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
 
           {/* Coordinates row */}
           <div className="text-slate-500 flex items-center justify-between text-[11px] leading-tight">
-            <div>Sec: <strong className="text-slate-900">{highlightText(section, searchQuery)}</strong></div>
+            <div>Sec: <strong className="text-slate-900">{highlightText(sectionCode, searchQuery)}</strong></div>
             <div className="text-slate-800 font-bold">&bull;</div>
-            <div>Unit: <strong className="text-slate-900">{storageUnit}</strong></div>
+            <div>Unit: <strong className="text-slate-900">{unitNum}</strong></div>
             <div className="text-slate-800 font-bold">&bull;</div>
-            <div>Box: <strong className="text-slate-900">{box}</strong></div>
+            <div>Box: <strong className="text-slate-900">{boxNum}</strong></div>
           </div>
         </div>
 
@@ -180,7 +201,7 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
               title="Take item for a project"
               className={`h-9 font-extrabold text-[11px] px-1.5 rounded-xl transition-all flex items-center justify-center gap-1 min-w-0 ${
                 quantity > 0
-                  ? 'bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 hover:border-indigo-600:border-indigo-400 cursor-pointer shadow-sm hover:shadow-md hover:-translate-y-0.5'
+                  ? 'bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 cursor-pointer shadow-sm hover:shadow-md'
                   : 'bg-slate-50 text-slate-400 border border-slate-200 cursor-not-allowed'
               }`}
             >
@@ -201,7 +222,7 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
                 onAddStock(item);
               }}
               title="Add stock to inventory"
-              className="h-9 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 hover:border-emerald-600 font-extrabold text-[11px] px-1.5 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer shadow-sm hover:shadow-md hover:-translate-y-0.5 min-w-0"
+              className="h-9 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 font-extrabold text-[11px] px-1.5 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer shadow-sm hover:shadow-md min-w-0"
             >
               <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
@@ -212,17 +233,28 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
             <div />
           )}
 
-          <Link
-            to={`/inventory/${_id}`}
-            onClick={(e) => e.stopPropagation()}
-            title="View item details"
-            className="h-9 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-900 font-bold text-[11px] px-1.5 rounded-xl transition-all flex items-center justify-center gap-1 text-center min-w-0 shadow-sm hover:shadow-md hover:-translate-y-0.5"
-          >
-            <span className="truncate">Details</span>
-            <svg className="w-3 h-3 text-slate-400 shrink-0 group-hover:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
-            </svg>
-          </Link>
+          <div className="flex gap-1.5">
+            <Link
+              to={`/inventory/${_id}`}
+              onClick={(e) => e.stopPropagation()}
+              title="View item details"
+              className="h-9 flex-1 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-900 font-bold text-[11px] px-1.5 rounded-xl transition-all flex items-center justify-center gap-1 text-center min-w-0 shadow-sm hover:shadow-md"
+            >
+              <span className="truncate">Details</span>
+            </Link>
+
+            {onMoveItem && (
+              <button
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onMoveItem(item); }}
+                className="h-9 flex-1 min-w-[36px] bg-slate-50 hover:bg-amber-50 text-slate-600 hover:text-amber-700 border border-slate-200 hover:border-amber-300 font-bold text-[11px] rounded-xl transition-all flex items-center justify-center"
+                title="Move item stock"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

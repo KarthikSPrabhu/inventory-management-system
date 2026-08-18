@@ -7,8 +7,11 @@ import StorageVisualizer from '../components/storage/StorageVisualizer';
 import StorageLocationPanel from '../components/storage/StorageLocationPanel';
 import TakeItemModal from '../components/inventory/TakeItemModal';
 import AddStockModal from '../components/inventory/AddStockModal';
-import { getPhysicalDrawerNumber } from '../config/storageConfig';
+import MoveItemModal from '../components/inventory/MoveItemModal';
+import { getPhysicalDrawerNumbers } from '../config/storageConfig';
 import { useAuth } from '../context/AuthContext';
+import { useStorage } from '../context/StorageContext';
+import { getLocationDisplayId, resolveNodeHierarchy } from '../utils/locationUtils';
 
 // Skeleton Loader Card component
 const SkeletonCard = () => (
@@ -32,6 +35,8 @@ function Inventory() {
   const [searchParams, setSearchParams] = useSearchParams();
   const routerLocation = useLocation();
   const { isAdmin } = useAuth();
+  const { tree } = useStorage();
+
   const searchQuery = searchParams.get('search') || '';
   const filterCategory = searchParams.get('category') || 'All';
   const filterStatus = searchParams.get('status') || 'All';
@@ -51,6 +56,7 @@ function Inventory() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [activeBoxDrawer, setActiveBoxDrawer] = useState(0);
   const [isRackBoxFilter, setIsRackBoxFilter] = useState(false);
+  const [isUnresolvableLocation, setIsUnresolvableLocation] = useState(false);
 
   // Phase 9: Take Item Modal state
   const [takeItemTarget, setTakeItemTarget] = useState(null);
@@ -59,6 +65,10 @@ function Inventory() {
   // Phase 11: Add Stock Modal state
   const [addStockTarget, setAddStockTarget] = useState(null);
   const [isAddStockModalOpen, setIsAddStockModalOpen] = useState(false);
+
+  // Phase 20: Move Item Modal state
+  const [moveItemTarget, setMoveItemTarget] = useState(null);
+  const [isMoveItemModalOpen, setIsMoveItemModalOpen] = useState(false);
 
   // Fetch all items from Atlas
   const loadInventory = async () => {
@@ -114,19 +124,34 @@ function Inventory() {
   const handleStatusChange = (status) => updateParams({ status: status });
   const handleSortChange = (sort) => updateParams({ sort: sort });
 
-  // ITEM -> DRAWER: Clicking an item card
-  // Highlights the item and opens its drawer on the storage visualizer WITHOUT hiding other items!
-  const handleLocateItem = (item) => {
-    if (selectedItem && selectedItem._id === item._id) {
+  // ITEM -> DRAWER: Clicking an item card or specific location badge
+  const handleLocateItem = (item, specificNode = null) => {
+    if (selectedItem && selectedItem._id === item._id && !specificNode) {
       // Deselect
       setSelectedItem(null);
       setActiveBoxDrawer(0);
       setIsRackBoxFilter(false);
+      setIsUnresolvableLocation(false);
     } else {
       setSelectedItem(item);
-      const drawerNum = getPhysicalDrawerNumber(item.location);
-      setActiveBoxDrawer(drawerNum);
       setIsRackBoxFilter(false); // Keeps all catalog items visible!
+
+      let drawerNum = 0;
+      if (specificNode) {
+        const resolved = resolveNodeHierarchy(specificNode, tree);
+        drawerNum = resolved?.physicalDrawer || 0;
+      } else {
+        const drawers = getPhysicalDrawerNumbers(item.locations, tree);
+        drawerNum = drawers.length > 0 ? drawers[0] : 0;
+      }
+
+      if (drawerNum > 0) {
+        setActiveBoxDrawer(drawerNum);
+        setIsUnresolvableLocation(false);
+      } else {
+        setActiveBoxDrawer(0);
+        setIsUnresolvableLocation(true);
+      }
 
       // Scroll to physical storage on mobile view
       if (window.innerWidth < 1024 && visualizerRef.current) {
@@ -137,6 +162,13 @@ function Inventory() {
     }
   };
 
+  // Select a specific location from multi-location list in StorageLocationPanel
+  const handleSelectSpecificLocation = (node) => {
+    if (selectedItem) {
+      handleLocateItem(selectedItem, node);
+    }
+  };
+
   // DRAWER -> ITEMS: Clicking Box 1..6 directly on the storage visualizer
   const handleSelectBoxDrawer = (drawerNum) => {
     if (activeBoxDrawer === drawerNum && isRackBoxFilter) {
@@ -144,10 +176,12 @@ function Inventory() {
       setActiveBoxDrawer(0);
       setSelectedItem(null);
       setIsRackBoxFilter(false);
+      setIsUnresolvableLocation(false);
     } else {
       setActiveBoxDrawer(drawerNum);
       setIsRackBoxFilter(true);
-      const itemsInDrawer = items.filter((it) => getPhysicalDrawerNumber(it.location) === drawerNum);
+      setIsUnresolvableLocation(false);
+      const itemsInDrawer = items.filter((it) => getPhysicalDrawerNumbers(it.locations, tree).includes(drawerNum));
       if (itemsInDrawer.length > 0) {
         setSelectedItem(itemsInDrawer[0]);
       } else {
@@ -161,6 +195,7 @@ function Inventory() {
     setActiveBoxDrawer(0);
     setSelectedItem(null);
     setIsRackBoxFilter(false);
+    setIsUnresolvableLocation(false);
   };
 
   // Open Take Item Modal
@@ -199,23 +234,45 @@ function Inventory() {
     loadInventory(); // Refresh items from Atlas to update quantities in real time
   };
 
+  // Open Move Item Modal
+  const handleOpenMoveModal = (item) => {
+    setMoveItemTarget(item);
+    setIsMoveItemModalOpen(true);
+  };
+
+  // Close Move Item Modal
+  const handleCloseMoveModal = () => {
+    setIsMoveItemModalOpen(false);
+    setMoveItemTarget(null);
+  };
+
+  // Handle successful move
+  const handleMoveSuccess = (flashMsg) => {
+    setFlashMessage(flashMsg);
+    loadInventory(); // Refresh items
+  };
+
   // Client-side search & box drawer filtering
   const filteredItems = items.filter((item) => {
     // Only filter out other items if user explicitly clicked a physical box on the rack visualizer directly!
     if (isRackBoxFilter && activeBoxDrawer > 0) {
-      const itemDrawer = getPhysicalDrawerNumber(item.location);
-      if (itemDrawer !== activeBoxDrawer) return false;
+      const itemDrawers = getPhysicalDrawerNumbers(item.locations, tree);
+      if (!itemDrawers.includes(activeBoxDrawer)) return false;
     }
 
     if (searchQuery.trim()) {
       const query = searchQuery.trim().toLowerCase();
       const nameMatch = (item.name || '').toLowerCase().includes(query);
-      const codeMatch = (item.location?.code || '').toLowerCase().includes(query);
-      const sectionMatch = (item.location?.section || '').toLowerCase().includes(query);
-      const unitMatch = item.location?.storageUnit !== undefined && String(item.location.storageUnit).includes(query);
-      const boxMatch = item.location?.box !== undefined && String(item.location.box).includes(query);
+      const codeMatch = (item.locations || []).some(loc => {
+        if (!loc.node) return false;
+        const displayCode = getLocationDisplayId(loc.node, tree);
+        return displayCode.toLowerCase().includes(query) || (loc.node.code || '').toLowerCase().includes(query);
+      });
+      const sectionMatch = (item.locations || []).some(loc => 
+        loc.node && (loc.node.section || '').toLowerCase().includes(query)
+      );
 
-      if (!(nameMatch || codeMatch || sectionMatch || unitMatch || boxMatch)) return false;
+      if (!(nameMatch || codeMatch || sectionMatch)) return false;
     }
 
     if (filterCategory !== 'All') {
@@ -244,7 +301,7 @@ function Inventory() {
 
   // Calculate items assigned to currently open physical drawer
   const itemsInActiveDrawer = activeBoxDrawer > 0
-    ? items.filter((it) => getPhysicalDrawerNumber(it.location) === activeBoxDrawer)
+    ? items.filter((it) => getPhysicalDrawerNumbers(it.locations, tree).includes(activeBoxDrawer))
     : [];
 
   return (
@@ -410,7 +467,10 @@ function Inventory() {
             {/* Storage Rack Visualizer */}
             <StorageVisualizer
               selectedDrawer={activeBoxDrawer}
-              location={selectedItem?.location}
+              selectedStorageUnit={activeBoxDrawer}
+              unresolvable={isUnresolvableLocation}
+              unresolvableMessage={selectedItem ? `Item "${selectedItem.name}" location could not be resolved.` : ''}
+              locations={selectedItem?.locations}
               item={selectedItem}
               onSelectDrawer={handleSelectBoxDrawer}
               onReset={handleResetStorageView}
@@ -420,8 +480,9 @@ function Inventory() {
             <StorageLocationPanel
               selectedDrawer={activeBoxDrawer}
               drawerItems={itemsInActiveDrawer}
-              location={selectedItem?.location}
+              locations={selectedItem?.locations}
               item={selectedItem}
+              onSelectLocation={handleSelectSpecificLocation}
             />
           </div>
 
@@ -474,6 +535,7 @@ function Inventory() {
                       onLocate={handleLocateItem}
                       onTakeItem={handleOpenTakeModal}
                       onAddStock={isAdmin ? handleOpenAddStockModal : undefined}
+                      onMoveItem={isAdmin ? handleOpenMoveModal : undefined}
                       isLocated={isSelected}
                     />
                   );
@@ -499,6 +561,14 @@ function Inventory() {
         isOpen={isAddStockModalOpen}
         onClose={handleCloseAddStockModal}
         onSuccess={handleAddStockSuccess}
+      />
+
+      {/* Phase 20: Move Item Modal */}
+      <MoveItemModal
+        item={moveItemTarget}
+        isOpen={isMoveItemModalOpen}
+        onClose={handleCloseMoveModal}
+        onSuccess={handleMoveSuccess}
       />
     </div>
   );

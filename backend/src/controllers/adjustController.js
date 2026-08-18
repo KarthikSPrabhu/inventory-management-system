@@ -1,5 +1,6 @@
 const InventoryAdjustment = require('../models/InventoryAdjustment');
 const InventoryItem = require('../models/InventoryItem');
+const { deepPopulateLocation } = require('../utils/locationUtils');
 const mongoose = require('mongoose');
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
@@ -10,10 +11,14 @@ const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 exports.adjustStock = async (req, res) => {
   try {
     const { id } = req.params;
-    const { newQuantity, reason, notes } = req.body;
+    const { locationId, newQuantity, reason, notes } = req.body;
 
     if (!isValidId(id)) {
       return res.status(400).json({ success: false, message: 'Invalid item ID format' });
+    }
+
+    if (!locationId || !isValidId(locationId)) {
+      return res.status(400).json({ success: false, message: 'Invalid location ID format' });
     }
 
     const qty = Number(newQuantity);
@@ -40,27 +45,38 @@ exports.adjustStock = async (req, res) => {
     }
 
     try {
-      // We cannot easily do findOneAndUpdate here while returning the prevQty if another process changes it.
-      // But we CAN use findOneAndUpdate to set it atomically.
       const itemBefore = await InventoryItem.findById(id).session(session || undefined);
       if (!itemBefore) {
         if (session) await session.abortTransaction();
         return res.status(404).json({ success: false, message: 'Inventory item not found' });
       }
 
-      if (itemBefore.quantity === qty) {
+      const locTarget = itemBefore.locations.find(l => l.node.toString() === locationId);
+      if (!locTarget) {
         if (session) await session.abortTransaction();
-        return res.status(400).json({ success: false, message: 'New quantity is the same as current quantity. No adjustment needed.' });
+        return res.status(404).json({ success: false, message: 'Item does not exist in the specified location' });
       }
 
-      const prevQty = itemBefore.quantity;
+      const prevQty = locTarget.quantity;
+
+      if (prevQty === qty) {
+        if (session) await session.abortTransaction();
+        return res.status(400).json({ success: false, message: 'New quantity is the same as current quantity for this location. No adjustment needed.' });
+      }
+
       const diff = qty - prevQty;
 
       const item = await InventoryItem.findOneAndUpdate(
-        { _id: id, quantity: prevQty }, // only update if nobody else changed it in the meantime!
-        { $set: { quantity: qty } },
+        { 
+          _id: id, 
+          locations: { $elemMatch: { node: locationId, quantity: prevQty } } 
+        },
+        { 
+          $set: { 'locations.$.quantity': qty },
+          $inc: { quantity: diff } 
+        },
         { new: true, session: session || undefined }
-      );
+      ).populate(deepPopulateLocation);
 
       if (!item) {
         if (session) await session.abortTransaction();

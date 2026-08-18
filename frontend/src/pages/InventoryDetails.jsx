@@ -371,7 +371,7 @@ function InventoryDetails() {
 
         {/* Right Column: Visual Location Display Map */}
         <div className="flex flex-col items-center">
-          <LocationDisplay location={itemLocation} />
+          <LocationDisplay locations={item?.locations} location={itemLocation} />
         </div>
       </div>
 

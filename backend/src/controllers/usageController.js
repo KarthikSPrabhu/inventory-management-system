@@ -3,6 +3,7 @@ const InventoryStockIn = require('../models/InventoryStockIn');
 const InventoryAdjustment = require('../models/InventoryAdjustment');
 const InventoryItem = require('../models/InventoryItem');
 const Project = require('../models/Project');
+const { deepPopulateLocation } = require('../utils/locationUtils');
 const mongoose = require('mongoose');
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
@@ -12,7 +13,7 @@ const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 // @access  Private (requireAuth)
 exports.createUsage = async (req, res) => {
   try {
-    const { itemId, projectId, quantity, notes } = req.body;
+    const { itemId, locationId, projectId, quantity, notes } = req.body;
 
     // 1. Validate Item ID format
     if (!itemId || !isValidId(itemId)) {
@@ -27,6 +28,13 @@ exports.createUsage = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'A valid project selection is required'
+      });
+    }
+
+    if (!locationId || !isValidId(locationId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'A valid physical location selection is required'
       });
     }
 
@@ -68,10 +76,13 @@ exports.createUsage = async (req, res) => {
 
     try {
       const item = await InventoryItem.findOneAndUpdate(
-        { _id: itemId, quantity: { $gte: qty } },
-        { $inc: { quantity: -qty } },
+        { 
+          _id: itemId, 
+          'locations': { $elemMatch: { node: locationId, quantity: { $gte: qty } } } 
+        },
+        { $inc: { quantity: -qty, 'locations.$.quantity': -qty } },
         { new: true, session: session || undefined }
-      );
+      ).populate(deepPopulateLocation);
 
       if (!item) {
         const checkItem = await InventoryItem.findById(itemId).session(session || undefined);
@@ -92,7 +103,7 @@ exports.createUsage = async (req, res) => {
         item: item._id,
         project: project._id,
         quantity: qty,
-        location: item.location.code,
+        locationNode: locationId,
         notes: noteText
       });
 

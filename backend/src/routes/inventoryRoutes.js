@@ -5,7 +5,8 @@ const {
   getInventoryItems,
   getInventoryItemById,
   updateInventoryItem,
-  deleteInventoryItem
+  deleteInventoryItem,
+  moveItem
 } = require('../controllers/inventoryController');
 const { adjustStock } = require('../controllers/adjustController');
 
@@ -21,6 +22,9 @@ router.route('/:id')
   .get(requireAuth, getInventoryItemById)
   .put(requireAuth, requireRole('admin'), updateInventoryItem)
   .delete(requireAuth, requireRole('admin'), deleteInventoryItem);
+
+// Move item endpoint: POST requires admin role
+router.post('/:id/move', requireAuth, requireRole('admin'), moveItem);
 
 // Stock adjustment endpoint: POST requires admin role
 router.route('/:id/adjust')

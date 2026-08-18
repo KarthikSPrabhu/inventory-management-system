@@ -1,5 +1,6 @@
 const InventoryStockIn = require('../models/InventoryStockIn');
 const InventoryItem = require('../models/InventoryItem');
+const { deepPopulateLocation } = require('../utils/locationUtils');
 const mongoose = require('mongoose');
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
@@ -12,13 +13,20 @@ const PREDEFINED_REASONS = ['Purchased', 'Returned', 'Found', 'Transferred In', 
 // @access  Private (requireAuth, requireRole('admin'))
 exports.createStockIn = async (req, res) => {
   try {
-    const { itemId, quantity, reason, notes } = req.body;
+    const { itemId, locationId, quantity, reason, notes } = req.body;
 
     // 1. Validate Item ID format
     if (!itemId || !isValidId(itemId)) {
       return res.status(400).json({
         success: false,
         message: 'A valid inventory item selection is required'
+      });
+    }
+
+    if (!locationId || !isValidId(locationId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'A valid physical location selection is required'
       });
     }
 
@@ -71,22 +79,53 @@ exports.createStockIn = async (req, res) => {
     }
 
     try {
-      const item = await InventoryItem.findOneAndUpdate(
-        { _id: itemId },
-        { $inc: { quantity: qty } },
-        { new: true, session: session || undefined }
+      // Atomic location array update
+      const updateResult = await InventoryItem.updateOne(
+        { _id: itemId, 'locations.node': locationId },
+        { $inc: { 'locations.$.quantity': qty, quantity: qty } },
+        { session: session || undefined }
       );
+
+      if (updateResult.matchedCount === 0) {
+        // Location not in array yet, atomically push
+        const pushResult = await InventoryItem.updateOne(
+          { _id: itemId, 'locations.node': { $ne: locationId } },
+          { 
+            $push: { locations: { node: locationId, quantity: qty } },
+            $inc: { quantity: qty }
+          },
+          { session: session || undefined }
+        );
+
+        if (pushResult.matchedCount === 0) {
+          // If push didn't match, the item either doesn't exist or someone else just added the location.
+          // In the extremely rare case someone else added it between the first updateOne and this one,
+          // we would need to retry. A simple fallback is to just throw an error or retry.
+          const checkItem = await InventoryItem.findById(itemId).session(session || undefined);
+          if (!checkItem) {
+            if (session) await session.abortTransaction();
+            return res.status(404).json({ success: false, message: 'Inventory item not found' });
+          } else {
+             // Retry the increment
+             await InventoryItem.updateOne(
+               { _id: itemId, 'locations.node': locationId },
+               { $inc: { 'locations.$.quantity': qty, quantity: qty } },
+               { session: session || undefined }
+             );
+          }
+        }
+      }
+
+      const item = await InventoryItem.findById(itemId).populate(deepPopulateLocation).session(session || undefined);
 
       if (!item) {
         if (session) await session.abortTransaction();
-        return res.status(404).json({
-          success: false,
-          message: 'Inventory item not found'
-        });
+        return res.status(404).json({ success: false, message: 'Inventory item not found after update' });
       }
 
       const stockIn = new InventoryStockIn({
         item: item._id,
+        locationNode: locationId,
         quantity: qty,
         reason: finalReason,
         notes: noteText

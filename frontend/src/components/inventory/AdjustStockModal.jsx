@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { adjustStockRecord } from '../../services/inventoryService';
+import LocationSelector from '../storage/LocationSelector';
 
 /**
- * AdjustStockModal Component — Phase 19
+ * AdjustStockModal Component — Phase 19/20
  * 
- * Polished modal dialog for adjusting stock to an absolute value for corrections.
+ * Modal dialog for adjusting stock at a specific location to an absolute value for corrections.
  */
 function AdjustStockModal({ item, isOpen, onClose, onSuccess }) {
+  const [selectedLocationId, setSelectedLocationId] = useState('');
   const [newQuantity, setNewQuantity] = useState(0);
   const [reason, setReason] = useState('Physical Count Correction');
   const [customReason, setCustomReason] = useState('');
@@ -19,7 +21,10 @@ function AdjustStockModal({ item, isOpen, onClose, onSuccess }) {
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen && item) {
-      setNewQuantity(item.quantity || 0);
+      const initialLoc = item.locations && item.locations.length > 0 ? item.locations[0].node?._id || '' : '';
+      setSelectedLocationId(initialLoc);
+      const initialLocObj = item.locations?.find(l => l.node?._id === initialLoc);
+      setNewQuantity(initialLocObj ? initialLocObj.quantity : 0);
       setReason('Physical Count Correction');
       setCustomReason('');
       setNotes('');
@@ -28,22 +33,33 @@ function AdjustStockModal({ item, isOpen, onClose, onSuccess }) {
     }
   }, [isOpen, item]);
 
+  // Update quantity field when location selection changes
+  const handleLocationChange = (locId) => {
+    setSelectedLocationId(locId);
+    const locObj = item?.locations?.find(l => l.node?._id === locId);
+    if (locObj) {
+      setNewQuantity(locObj.quantity);
+    }
+  };
+
   if (!isOpen || !item) return null;
 
-  const currentStock = item.quantity || 0;
+  const selectedLocObj = item.locations?.find(l => l.node?._id === selectedLocationId);
+  const currentStockAtLocation = selectedLocObj ? selectedLocObj.quantity : 0;
   const numQty = Number(newQuantity);
 
   // Validation checks
   const isQtyValid = Number.isInteger(numQty) && numQty >= 0;
   const isReasonValid = reason === 'Other' ? Boolean(customReason.trim()) : Boolean(reason);
-  const isDiff = numQty !== currentStock;
-  const isFormValid = isQtyValid && isReasonValid && isDiff && !submitting;
+  const isLocationValid = Boolean(selectedLocationId);
+  const isDiff = numQty !== currentStockAtLocation;
+  const isFormValid = isQtyValid && isReasonValid && isLocationValid && isDiff && !submitting;
 
   let qtyError = '';
   if (newQuantity !== '' && (!Number.isInteger(numQty) || numQty < 0)) {
     qtyError = 'Quantity must be a non-negative whole number.';
-  } else if (numQty === currentStock) {
-    qtyError = 'New quantity must be different from current stock.';
+  } else if (numQty === currentStockAtLocation) {
+    qtyError = 'New quantity must be different from current stock at this location.';
   }
 
   let reasonError = '';
@@ -60,6 +76,7 @@ function AdjustStockModal({ item, isOpen, onClose, onSuccess }) {
 
     try {
       const response = await adjustStockRecord(item._id, {
+        locationId: selectedLocationId,
         newQuantity: numQty,
         reason: reason === 'Other' ? customReason.trim() : reason,
         notes: notes.trim()
@@ -128,34 +145,32 @@ function AdjustStockModal({ item, isOpen, onClose, onSuccess }) {
             </div>
           )}
 
-          {/* Current Stock Banner */}
-          <div className="bg-slate-100 border border-slate-200 p-3.5 rounded-xl flex items-center justify-between">
-            <div>
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Item Location</span>
-              <span className="font-mono text-xs font-bold text-indigo-600 mt-0.5 block">📍 {item.location?.code}</span>
-            </div>
-            <div className="text-right">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Current Stock</span>
-              <span className={`text-sm font-extrabold mt-0.5 block ${
-                currentStock > 5 ? 'text-emerald-600' : currentStock > 0 ? 'text-amber-600' : 'text-rose-600'
-              }`}>
-                {currentStock} {currentStock === 1 ? 'unit' : 'units'} available
-              </span>
-            </div>
+          {/* Location Selection */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-600 block">Select Location to Adjust <span className="text-indigo-600">*</span></label>
+            <LocationSelector
+              value={selectedLocationId}
+              onChange={handleLocationChange}
+              disabled={submitting || !item.locations || item.locations.length === 0}
+              filterExistingItemLocations={item.locations}
+            />
           </div>
 
           {/* Quantity Input */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-600 block">
-              New Exact Quantity <span className="text-indigo-600">*</span>
-            </label>
+            <div className="flex justify-between items-center">
+              <label className="text-xs font-bold text-slate-600 block">
+                New Exact Quantity at Location <span className="text-indigo-600">*</span>
+              </label>
+              <span className="text-[10px] font-bold text-slate-400">Current: {currentStockAtLocation}</span>
+            </div>
             <input
               type="number"
               min="0"
               step="1"
               value={newQuantity}
               onChange={(e) => setNewQuantity(e.target.value)}
-              disabled={submitting}
+              disabled={submitting || !selectedLocationId}
               className={`w-full bg-slate-50 border rounded-xl px-4 py-2.5 text-sm font-bold text-slate-900 placeholder-slate-400 focus:outline-none transition-colors ${
                 qtyError ? 'border-rose-500/70 focus:border-rose-500' : 'border-slate-200 focus:border-indigo-500'
               }`}
@@ -226,12 +241,12 @@ function AdjustStockModal({ item, isOpen, onClose, onSuccess }) {
 
           {/* Confirmation summary box */}
           {isQtyValid && isReasonValid && isDiff && (
-            <div className="bg-indigo-50/50 border border-indigo-200 p-3 rounded-xl text-xs text-indigo-700 flex items-center gap-2">
+            <div className="bg-indigo-50 border border-indigo-200 p-3 rounded-xl text-xs font-medium text-indigo-900 flex items-center gap-2">
               <svg className="w-4 h-4 text-indigo-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <span>
-                Change stock from <strong>{currentStock}</strong> to <strong>{numQty}</strong> (Difference: <strong>{numQty - currentStock > 0 ? '+' : ''}{numQty - currentStock}</strong>).
+                Location stock change: <strong className="font-extrabold text-indigo-950">{currentStockAtLocation}</strong> &rarr; <strong className="font-extrabold text-indigo-950">{numQty}</strong> (Diff: <strong className="font-extrabold text-indigo-950">{numQty - currentStockAtLocation > 0 ? '+' : ''}{numQty - currentStockAtLocation}</strong>).
               </span>
             </div>
           )}

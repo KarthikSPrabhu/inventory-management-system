@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { createUsageRecord, getProjectSuggestions } from '../../services/inventoryService';
 import CreateProjectModal from '../projects/CreateProjectModal';
+import { useStorage } from '../../context/StorageContext';
+import { getLocationDisplayId } from '../../utils/locationUtils';
 
 /**
  * TakeItemModal Component — Phase 9
@@ -9,8 +11,10 @@ import CreateProjectModal from '../projects/CreateProjectModal';
  * ranked by previous item usage, search filtering, and seamless project creation.
  */
 function TakeItemModal({ item, isOpen, onClose, onSuccess }) {
+  const { tree } = useStorage();
   const [quantityTake, setQuantityTake] = useState(1);
   const [selectedProjectId, setSelectedProjectId] = useState('');
+  const [selectedLocationId, setSelectedLocationId] = useState('');
   const [notes, setNotes] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
@@ -26,6 +30,7 @@ function TakeItemModal({ item, isOpen, onClose, onSuccess }) {
     if (isOpen && item) {
       setQuantityTake(item.quantity > 0 ? 1 : 0);
       setSelectedProjectId('');
+      setSelectedLocationId(item.locations && item.locations.length > 0 ? item.locations[0].node?._id || '' : '');
       setNotes('');
       setErrorMsg('');
       setSubmitting(false);
@@ -54,18 +59,20 @@ function TakeItemModal({ item, isOpen, onClose, onSuccess }) {
 
   if (!isOpen || !item) return null;
 
-  const availableQty = item.quantity || 0;
+  const selectedLocObj = item.locations?.find(l => l.node?._id === selectedLocationId);
+  const locationAvailableQty = selectedLocObj ? selectedLocObj.quantity : 0;
   const numQty = Number(quantityTake);
 
   // Validation checks
-  const isQtyValid = Number.isInteger(numQty) && numQty >= 1 && numQty <= availableQty;
+  const isQtyValid = Number.isInteger(numQty) && numQty >= 1 && numQty <= locationAvailableQty;
   const isProjectValid = Boolean(selectedProjectId);
-  const isFormValid = isQtyValid && isProjectValid && availableQty > 0 && !submitting;
+  const isLocationValid = Boolean(selectedLocationId);
+  const isFormValid = isQtyValid && isProjectValid && isLocationValid && locationAvailableQty > 0 && !submitting;
 
   let qtyError = '';
-  if (numQty > availableQty) {
-    qtyError = `Insufficient quantity. Only ${availableQty} unit(s) available.`;
-  } else if (numQty < 1 && availableQty > 0) {
+  if (numQty > locationAvailableQty) {
+    qtyError = `Insufficient quantity at this location. Only ${locationAvailableQty} unit(s) available here.`;
+  } else if (numQty < 1 && locationAvailableQty > 0) {
     qtyError = 'Quantity to take must be at least 1.';
   }
 
@@ -102,6 +109,7 @@ function TakeItemModal({ item, isOpen, onClose, onSuccess }) {
     try {
       const response = await createUsageRecord({
         itemId: item._id,
+        locationId: selectedLocationId,
         projectId: selectedProjectId,
         quantity: numQty,
         notes: notes.trim()
@@ -172,20 +180,38 @@ function TakeItemModal({ item, isOpen, onClose, onSuccess }) {
               </div>
             )}
 
-            {/* Stock Info */}
-            <div className="bg-slate-100 border border-slate-200 p-3.5 rounded-xl flex items-center justify-between">
-              <div>
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Item Location</span>
-                <span className="font-mono text-xs font-bold text-indigo-600 mt-0.5 block">📍 {item.location?.code}</span>
-              </div>
-              <div className="text-right">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Available Stock</span>
-                <span className={`text-sm font-extrabold mt-0.5 block ${
-                  availableQty > 5 ? 'text-emerald-600' : availableQty > 0 ? 'text-amber-600' : 'text-rose-600'
+            {/* Stock Info & Location Selector */}
+            <div className="bg-slate-100 border border-slate-200 p-3.5 rounded-xl space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Select Location</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Available Stock</span>
+                  <span className={`text-sm font-extrabold mt-0.5 block ${
+                  locationAvailableQty > 5 ? 'text-emerald-600' : locationAvailableQty > 0 ? 'text-amber-600' : 'text-rose-600'
                 }`}>
-                  {availableQty} available
+                  {locationAvailableQty} available here
                 </span>
+                </div>
               </div>
+              
+              {item.locations && item.locations.length > 0 ? (
+                <select
+                  value={selectedLocationId}
+                  onChange={(e) => setSelectedLocationId(e.target.value)}
+                  disabled={submitting || item.locations.length === 1}
+                  className="w-full bg-white border border-slate-200 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none transition-colors"
+                >
+                  {item.locations.map(loc => (
+                    <option key={loc.node?._id} value={loc.node?._id}>
+                      📍 {getLocationDisplayId(loc.node, tree) || loc.node?.code} ({loc.quantity} available)
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="text-xs font-bold text-rose-500">No locations available</div>
+              )}
             </div>
 
             {/* Quantity Input */}
@@ -196,11 +222,11 @@ function TakeItemModal({ item, isOpen, onClose, onSuccess }) {
               <input
                 type="number"
                 min="1"
-                max={availableQty}
+                max={locationAvailableQty}
                 step="1"
                 value={quantityTake}
                 onChange={(e) => setQuantityTake(e.target.value)}
-                disabled={submitting || availableQty === 0}
+                disabled={submitting || locationAvailableQty === 0}
                 placeholder="1"
                 className={`w-full bg-slate-50 border rounded-xl px-4 py-2.5 text-sm font-bold text-slate-900 placeholder-slate-400 focus:outline-none transition-colors ${
                   qtyError ? 'border-rose-500/70 focus:border-rose-500' : 'border-slate-200 focus:border-indigo-500'
@@ -208,9 +234,9 @@ function TakeItemModal({ item, isOpen, onClose, onSuccess }) {
               />
               {qtyError ? (
                 <p className="text-[11px] font-semibold text-rose-600 px-1">{qtyError}</p>
-              ) : (availableQty - numQty < (item.minimumStock !== undefined ? item.minimumStock : (item.lowStockThreshold || 0))) ? (
+              ) : (item.quantity - numQty < (item.minimumStock !== undefined ? item.minimumStock : (item.lowStockThreshold || 0))) ? (
                 <p className="text-[11px] font-semibold text-amber-600 px-1">
-                  Warning: Taking this amount will drop stock below minimum threshold ({item.minimumStock !== undefined ? item.minimumStock : (item.lowStockThreshold || 0)}).
+                  Warning: Taking this amount will drop total stock below minimum threshold ({item.minimumStock !== undefined ? item.minimumStock : (item.lowStockThreshold || 0)}).
                 </p>
               ) : null}
             </div>
@@ -261,7 +287,7 @@ function TakeItemModal({ item, isOpen, onClose, onSuccess }) {
                         setSelectedProjectId(e.target.value);
                       }
                     }}
-                    disabled={submitting || availableQty === 0}
+                    disabled={submitting || locationAvailableQty === 0}
                     className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none transition-colors cursor-pointer"
                   >
                     <option value="" disabled>Select a project...</option>
@@ -308,7 +334,7 @@ function TakeItemModal({ item, isOpen, onClose, onSuccess }) {
                 rows={2}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                disabled={submitting || availableQty === 0}
+                disabled={submitting || locationAvailableQty === 0}
                 placeholder="e.g. Vehicle prototype testing"
                 maxLength={500}
                 className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-xl px-4 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-colors resize-none"
@@ -317,11 +343,11 @@ function TakeItemModal({ item, isOpen, onClose, onSuccess }) {
 
             {/* Confirmation summary box */}
             {isQtyValid && isProjectValid && selectedProject && (
-              <div className="bg-indigo-950/30 border border-indigo-500/20 p-3 rounded-xl text-xs text-indigo-300 flex items-center gap-2">
+              <div className="bg-indigo-50 border border-indigo-200 p-3 rounded-xl text-xs font-medium text-indigo-900 flex items-center gap-2">
                 <svg className="w-4 h-4 text-indigo-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span>Take <strong>{numQty}</strong> × <strong>{item.name}</strong> for <strong>{selectedProject.name}</strong>?</span>
+                <span>Take <strong className="font-extrabold text-indigo-950">{numQty} &times; {item.name}</strong> for <strong className="font-extrabold text-indigo-950">{selectedProject.name}</strong>?</span>
               </div>
             )}
 

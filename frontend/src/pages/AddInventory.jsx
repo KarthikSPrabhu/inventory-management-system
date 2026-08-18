@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createItem } from '../services/inventoryService';
+import LocationBuilder from '../components/storage/LocationBuilder';
 
 function AddInventory() {
   const navigate = useNavigate();
+  const locationBuilderRef = useRef(null);
   
   // Field States
   const [name, setName] = useState('');
@@ -11,24 +13,21 @@ function AddInventory() {
   const [quantity, setQuantity] = useState('0');
   const [minimumStock, setMinimumStock] = useState('5');
   const [maximumStock, setMaximumStock] = useState('0');
-  const [section, setSection] = useState('');
-  const [storageUnit, setStorageUnit] = useState('');
-  const [box, setBox] = useState('');
   const [image, setImage] = useState('');
+
+  // Location Builder State
+  const [locationInfo, setLocationInfo] = useState({
+    section: 'A',
+    storageUnit: '',
+    boxes: [],
+    displayId: '',
+    isValid: false
+  });
   
   // UX States
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const [apiError, setApiError] = useState('');
-
-  // Auto-generate the location code based on: section + storageUnit + box
-  // Section and code must be uppercase
-  const sectionClean = section.trim().toUpperCase();
-  const unitClean = storageUnit.trim();
-  const boxClean = box.trim();
-  const generatedCode = (sectionClean && unitClean && boxClean)
-    ? `${sectionClean}${unitClean}${boxClean}`
-    : '';
 
   // Local Form Validations
   const validateForm = () => {
@@ -67,25 +66,9 @@ function AddInventory() {
       errors.minimumStock = 'Minimum stock cannot exceed maximum stock';
     }
 
-    // 3. Location Section Check
-    if (!sectionClean) {
-      errors.section = 'Section is required';
-    }
-
-    // 4. Location Storage Unit Check (Integer >= 1)
-    const suVal = Number(unitClean);
-    if (!unitClean || isNaN(suVal)) {
-      errors.storageUnit = 'Storage unit is required';
-    } else if (!Number.isInteger(suVal) || suVal < 1) {
-      errors.storageUnit = 'Storage unit must be an integer >= 1';
-    }
-
-    // 5. Location Box Check (Integer >= 1)
-    const bxVal = Number(boxClean);
-    if (!boxClean || isNaN(bxVal)) {
-      errors.box = 'Box is required';
-    } else if (!Number.isInteger(bxVal) || bxVal < 1) {
-      errors.box = 'Box must be an integer >= 1';
+    // 3. Physical Storage Location Check
+    if (!locationInfo.isValid) {
+      errors.location = 'A valid storage location (Section and Storage Unit) is required';
     }
 
     setFieldErrors(errors);
@@ -102,25 +85,23 @@ function AddInventory() {
 
     setLoading(true);
 
-    const payload = {
-      name: name.trim(),
-      category: category,
-      quantity: parseInt(quantity, 10),
-      minimumStock: minimumStock !== '' ? parseInt(minimumStock, 10) : 0,
-      maximumStock: maximumStock !== '' ? parseInt(maximumStock, 10) : 0,
-      image: image.trim(),
-      location: {
-        section: sectionClean,
-        storageUnit: parseInt(unitClean, 10),
-        box: parseInt(boxClean, 10),
-        code: generatedCode
-      }
-    };
-
     try {
+      // Resolve or safely create the StorageNode hierarchy
+      const resolvedLoc = await locationBuilderRef.current.resolveLocation();
+
+      const payload = {
+        name: name.trim(),
+        category: category,
+        quantity: parseInt(quantity, 10),
+        minimumStock: minimumStock !== '' ? parseInt(minimumStock, 10) : 0,
+        maximumStock: maximumStock !== '' ? parseInt(maximumStock, 10) : 0,
+        image: image.trim(),
+        locationId: resolvedLoc.nodeId
+      };
+
       await createItem(payload);
-      // Success redirection with a state flash message if necessary
-      navigate('/inventory', { state: { flash: `"${payload.name}" was added successfully.` } });
+      // Success redirection with a state flash message
+      navigate('/inventory', { state: { flash: `"${payload.name}" was added successfully at location ${resolvedLoc.displayId}.` } });
     } catch (err) {
       console.error(err);
       setApiError(err.message || 'Unable to add item. Please try again.');
@@ -133,7 +114,7 @@ function AddInventory() {
       {/* Title */}
       <div>
         <h3 className="text-2xl font-bold text-slate-900 tracking-tight">Add Inventory Item</h3>
-        <p className="text-xs text-slate-500 mt-1">Register a new item and track its location details.</p>
+        <p className="text-xs text-slate-500 mt-1">Register a new item and track its physical storage location.</p>
       </div>
 
       {/* Global API Error Banner */}
@@ -193,10 +174,10 @@ function AddInventory() {
           </select>
         </div>
 
-        {/* Quantity & Low Stock Threshold */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Quantity & Stock Thresholds */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Stock Quantity *</label>
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Initial Quantity *</label>
             <input
               type="number"
               value={quantity}
@@ -247,88 +228,39 @@ function AddInventory() {
             {fieldErrors.maximumStock ? (
               <p className="text-[11px] text-rose-450 font-medium">{fieldErrors.maximumStock}</p>
             ) : (
-              <p className="text-[10px] text-slate-500 font-medium">Optional maximum capacity.</p>
+              <p className="text-[10px] text-slate-500 font-medium">Optional max limit.</p>
             )}
           </div>
         </div>
 
-        {/* Location Section Header */}
-        <div className="pt-2 border-t border-slate-200">
-          <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-50"></span> Storage coordinates
-          </h4>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* Location Section */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Section *</label>
-              <input
-                type="text"
-                maxLength="3"
-                value={section}
-                onChange={(e) => setSection(e.target.value)}
-                disabled={loading}
-                placeholder="e.g. A"
-                className={`w-full bg-slate-50 border rounded-xl px-4 py-2.5 text-sm text-slate-900 uppercase placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-colors ${
-                  fieldErrors.section ? 'border-rose-500/50' : 'border-slate-200'
-                }`}
-              />
-              {fieldErrors.section && (
-                <p className="text-[10px] text-rose-450 font-medium">{fieldErrors.section}</p>
-              )}
-            </div>
+        {/* Hierarchical Physical Storage Location Section */}
+        <div className="pt-2 border-t border-slate-200 space-y-3">
+          <label className="text-xs font-bold text-slate-600 uppercase tracking-wide flex items-center justify-between">
+            <span>STORAGE LOCATION *</span>
+            {locationInfo.displayId && (
+              <span className="font-mono text-xs font-extrabold text-indigo-600 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-md">
+                📍 {locationInfo.displayId}
+              </span>
+            )}
+          </label>
 
-            {/* Storage Unit */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Storage Unit *</label>
-              <input
-                type="number"
-                min="1"
-                step="1"
-                value={storageUnit}
-                onChange={(e) => setStorageUnit(e.target.value)}
-                disabled={loading}
-                placeholder="e.g. 3"
-                className={`w-full bg-slate-50 border rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-indigo-500 transition-colors ${
-                  fieldErrors.storageUnit ? 'border-rose-500/50' : 'border-slate-200'
-                }`}
-              />
-              {fieldErrors.storageUnit && (
-                <p className="text-[10px] text-rose-450 font-medium">{fieldErrors.storageUnit}</p>
-              )}
-            </div>
+          <LocationBuilder
+            ref={locationBuilderRef}
+            onChange={(info) => {
+              setLocationInfo(info);
+              if (fieldErrors.location) {
+                setFieldErrors(prev => ({ ...prev, location: '' }));
+              }
+            }}
+            disabled={loading}
+          />
 
-            {/* Box */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Box Number *</label>
-              <input
-                type="number"
-                min="1"
-                step="1"
-                value={box}
-                onChange={(e) => setBox(e.target.value)}
-                disabled={loading}
-                placeholder="e.g. 19"
-                className={`w-full bg-slate-50 border rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-indigo-500 transition-colors ${
-                  fieldErrors.box ? 'border-rose-500/50' : 'border-slate-200'
-                }`}
-              />
-              {fieldErrors.box && (
-                <p className="text-[10px] text-rose-450 font-medium">{fieldErrors.box}</p>
-              )}
-            </div>
-          </div>
+          {fieldErrors.location && (
+            <p className="text-[11px] text-rose-500 font-medium px-1">{fieldErrors.location}</p>
+          )}
         </div>
 
-        {/* Generated Location Code (Read-Only) */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Generated Location Code</label>
-          <div className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-indigo-600 font-mono font-bold select-all flex items-center min-h-[42px]">
-            {generatedCode || <span className="text-slate-600 font-sans font-normal italic">Fill coordinates to build location code...</span>}
-          </div>
-        </div>
-
-        {/* Product Photo (Laptop File Picker + Base64 Preview) */}
+        {/* Product Photo */}
         <div className="pt-2 border-t border-slate-200 space-y-4">
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Product Photo (Optional)</label>
@@ -398,7 +330,7 @@ function AddInventory() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-50 disabled:bg-slate-100 disabled:text-slate-500 text-slate-900 font-bold text-sm px-6 py-3 rounded-xl transition-all shadow-lg shadow-indigo-650/20 flex items-center justify-center gap-2"
+            className="w-full bg-indigo-600 hover:bg-indigo-50 disabled:bg-slate-100 disabled:text-slate-500 text-slate-900 font-bold text-sm px-6 py-3 rounded-xl transition-all shadow-lg shadow-indigo-650/20 flex items-center justify-center gap-2 cursor-pointer"
           >
             {loading ? (
               <>

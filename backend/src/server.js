@@ -140,6 +140,10 @@ app.use('/api/users', userRoutes);
 const inventoryRoutes = require('./routes/inventoryRoutes');
 app.use('/api/inventory', inventoryRoutes);
 
+// Register Storage REST routes
+const storageRoutes = require('./routes/storageRoutes');
+app.use('/api/storage', storageRoutes);
+
 // Register Usage / Withdrawal REST routes
 const usageRoutes = require('./routes/usageRoutes');
 app.use('/api/usage', usageRoutes);

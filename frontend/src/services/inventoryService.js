@@ -169,6 +169,23 @@ export const adjustStockRecord = async (id, adjustData) => {
   return data;
 };
 
+// Record inventory stock move (Phase 20)
+export const moveInventoryItem = async (id, moveData) => {
+  const response = await authenticatedFetch(`/api/inventory/${id}/move`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(moveData),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.message || 'Unable to move item. Please try again.');
+  }
+  return data;
+};
+
 // Fetch all usage/activity records with filtering & pagination (Phase 10 & 11)
 export const getUsageRecords = async (params = {}) => {
   const query = new URLSearchParams();

@@ -1,6 +1,7 @@
 const InventoryItem = require('../models/InventoryItem');
 const InventoryUsage = require('../models/InventoryUsage');
 const InventoryStockIn = require('../models/InventoryStockIn');
+const { deepPopulateLocation } = require('../utils/locationUtils');
 const mongoose = require('mongoose');
 
 // Helper to validate ObjectId
@@ -45,7 +46,7 @@ const validateLocationCode = (location) => {
 // @access  Public
 exports.createInventoryItem = async (req, res) => {
   try {
-    const { name, image, quantity, location, lowStockThreshold, category, minimumStock, maximumStock } = req.body;
+    const { name, image, quantity, locationId, lowStockThreshold, category, minimumStock, maximumStock } = req.body;
     
     // Explicit Validation Check before Mongoose schema to return clear errors
     if (!name || String(name).trim().length === 0) {
@@ -93,11 +94,10 @@ exports.createInventoryItem = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Minimum stock cannot be greater than maximum stock' });
     }
     
-    const locationCheck = validateLocationCode(location);
-    if (!locationCheck.isValid) {
+    if (!isValidId(locationId)) {
       return res.status(400).json({
         success: false,
-        message: locationCheck.message
+        message: 'A valid physical location ID is required'
       });
     }
     
@@ -105,7 +105,7 @@ exports.createInventoryItem = async (req, res) => {
       name,
       image,
       quantity,
-      location,
+      locations: [{ node: locationId, quantity: quantity || 0 }],
       lowStockThreshold: thresholdVal,
       minimumStock: thresholdVal,
       maximumStock: maxStockVal,
@@ -183,7 +183,7 @@ exports.getInventoryItems = async (req, res) => {
       const limitNum = Math.max(1, parseInt(limit, 10));
       const skip = (pageNum - 1) * limitNum;
 
-      const items = await InventoryItem.find(query).sort(sortObj).skip(skip).limit(limitNum);
+      const items = await InventoryItem.find(query).populate(deepPopulateLocation).sort(sortObj).skip(skip).limit(limitNum);
       const total = await InventoryItem.countDocuments(query);
       const totalPages = Math.ceil(total / limitNum);
 
@@ -198,7 +198,7 @@ exports.getInventoryItems = async (req, res) => {
     }
 
     // If no pagination requested, return all (for backward compatibility)
-    const items = await InventoryItem.find(query).sort(sortObj);
+    const items = await InventoryItem.find(query).populate(deepPopulateLocation).sort(sortObj);
     res.status(200).json({
       success: true,
       data: items
@@ -225,7 +225,7 @@ exports.getInventoryItemById = async (req, res) => {
       });
     }
     
-    const item = await InventoryItem.findById(id);
+    const item = await InventoryItem.findById(id).populate(deepPopulateLocation);
     
     if (!item) {
       return res.status(404).json({
@@ -252,7 +252,7 @@ exports.getInventoryItemById = async (req, res) => {
 exports.updateInventoryItem = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, image, quantity, location, lowStockThreshold, category, minimumStock, maximumStock } = req.body;
+    const { name, image, lowStockThreshold, category, minimumStock, maximumStock } = req.body;
     
     if (!isValidId(id)) {
       return res.status(400).json({
@@ -269,44 +269,7 @@ exports.updateInventoryItem = async (req, res) => {
       });
     }
 
-    if (quantity !== undefined) {
-      const q = Number(quantity);
-      if (isNaN(q) || !Number.isInteger(q) || q < 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'Quantity must be a positive integer'
-        });
-      }
-    }
 
-    if (minimumStock !== undefined) {
-      const t = Number(minimumStock);
-      if (isNaN(t) || !Number.isInteger(t) || t < 0) {
-        return res.status(400).json({ success: false, message: 'Minimum stock must be a non-negative integer' });
-      }
-    } else if (lowStockThreshold !== undefined) {
-      const t = Number(lowStockThreshold);
-      if (isNaN(t) || !Number.isInteger(t) || t < 0) {
-        return res.status(400).json({ success: false, message: 'Low stock threshold must be a non-negative integer' });
-      }
-    }
-
-    if (maximumStock !== undefined) {
-      const max = Number(maximumStock);
-      if (isNaN(max) || !Number.isInteger(max) || max < 0) {
-        return res.status(400).json({ success: false, message: 'Maximum stock must be a non-negative integer' });
-      }
-    }
-    
-    if (location !== undefined) {
-      const locationCheck = validateLocationCode(location);
-      if (!locationCheck.isValid) {
-        return res.status(400).json({
-          success: false,
-          message: locationCheck.message
-        });
-      }
-    }
     
     const item = await InventoryItem.findById(id);
     
@@ -320,8 +283,6 @@ exports.updateInventoryItem = async (req, res) => {
     // Apply changes
     if (name !== undefined) item.name = name;
     if (image !== undefined) item.image = image;
-    if (quantity !== undefined) item.quantity = quantity;
-    if (location !== undefined) item.location = location;
     if (category !== undefined) item.category = String(category).trim();
     if (minimumStock !== undefined) {
       item.minimumStock = Number(minimumStock);
@@ -410,3 +371,112 @@ exports.deleteInventoryItem = async (req, res) => {
     });
   }
 };
+
+// @desc    Move stock between physical locations
+// @route   POST /api/inventory/:id/move
+// @access  Private (requireAuth)
+exports.moveItem = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { fromLocationId, toLocationId, quantity } = req.body;
+
+    if (!isValidId(id) || !isValidId(fromLocationId) || !isValidId(toLocationId)) {
+      return res.status(400).json({ success: false, message: 'Invalid ID formats provided.' });
+    }
+
+    if (fromLocationId === toLocationId) {
+      return res.status(400).json({ success: false, message: 'Source and destination locations cannot be the same.' });
+    }
+
+    const qty = Number(quantity);
+    if (isNaN(qty) || !Number.isInteger(qty) || qty <= 0) {
+      return res.status(400).json({ success: false, message: 'Move quantity must be a positive integer.' });
+    }
+
+    let session = null;
+    try {
+      session = await mongoose.startSession();
+      session.startTransaction();
+    } catch {
+      session = null;
+    }
+
+    try {
+      // 1. Deduct from source location
+      const decResult = await InventoryItem.updateOne(
+        { 
+          _id: id, 
+          'locations': { $elemMatch: { node: fromLocationId, quantity: { $gte: qty } } } 
+        },
+        { $inc: { 'locations.$.quantity': -qty } },
+        { session: session || undefined }
+      );
+
+      if (decResult.matchedCount === 0) {
+        if (session) await session.abortTransaction();
+        return res.status(400).json({ success: false, message: 'Insufficient stock at the source location.' });
+      }
+
+      // 2. Add to destination location
+      const incResult = await InventoryItem.updateOne(
+        { _id: id, 'locations.node': toLocationId },
+        { $inc: { 'locations.$.quantity': qty } },
+        { session: session || undefined }
+      );
+
+      if (incResult.matchedCount === 0) {
+        // Destination doesn't exist in array yet, so push it
+        const pushResult = await InventoryItem.updateOne(
+          { _id: id, 'locations.node': { $ne: toLocationId } },
+          { $push: { locations: { node: toLocationId, quantity: qty } } },
+          { session: session || undefined }
+        );
+
+        if (pushResult.matchedCount === 0) {
+          // Very rare race condition where it was added midway
+          await InventoryItem.updateOne(
+            { _id: id, 'locations.node': toLocationId },
+            { $inc: { 'locations.$.quantity': qty } },
+            { session: session || undefined }
+          );
+        }
+      }
+
+      const item = await InventoryItem.findById(id).populate(deepPopulateLocation).session(session || undefined);
+      
+      // Remove any location elements that hit 0 to clean up
+      item.locations = item.locations.filter(l => l.quantity > 0);
+      await item.save(session ? { session } : undefined);
+
+      // Record this move in InventoryAdjustment/Usage history? The prompt says "Verify history records the move."
+      // I should create an InventoryAdjustment record representing this move.
+      const InventoryAdjustment = require('../models/InventoryAdjustment');
+      const adjustment = new InventoryAdjustment({
+        item: item._id,
+        difference: 0, // overall difference is 0
+        previousQuantity: item.quantity,
+        newQuantity: item.quantity,
+        reason: 'Moved physically',
+        notes: `Moved ${qty} units from location ${fromLocationId} to ${toLocationId}`
+      });
+      await adjustment.save(session ? { session } : undefined);
+
+      if (session) await session.commitTransaction();
+
+      return res.status(200).json({
+        success: true,
+        message: `Successfully moved ${qty} units.`,
+        data: item
+      });
+    } catch (dbErr) {
+      if (session) await session.abortTransaction();
+      throw dbErr;
+    } finally {
+      if (session) session.endSession();
+    }
+  } catch (error) {
+    console.error('Move Item Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to move item.' });
+  }
+};
+

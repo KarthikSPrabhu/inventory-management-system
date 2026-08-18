@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getUsageRecords, getItems, getProjects } from '../services/inventoryService';
+import { useStorage } from '../context/StorageContext';
+import { getLocationDisplayId } from '../utils/locationUtils';
 
 function History() {
+  const { tree } = useStorage();
   const [historyRecords, setHistoryRecords] = useState([]);
   const [items, setItems] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -323,7 +326,7 @@ function History() {
               const itemId = record.item?._id;
               const projectName = record.project?.name || 'Unassigned Project';
               const projectId = record.project?._id;
-              const locationCode = record.location || record.item?.location?.code || 'N/A';
+              const locationCode = record.location || (record.item?.locations && record.item.locations.length > 0 ? getLocationDisplayId(record.item.locations[0]?.node, tree) : record.item?.location?.code || 'N/A');
               const qty = record.quantity || 0;
               const formattedDate = formatDate(record.createdAt);
 

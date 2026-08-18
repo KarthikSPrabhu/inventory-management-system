@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createStockInRecord } from '../../services/inventoryService';
+import LocationSelector from '../storage/LocationSelector';
 
 /**
  * AddStockModal Component — Phase 11
@@ -10,6 +11,7 @@ import { createStockInRecord } from '../../services/inventoryService';
  */
 function AddStockModal({ item, isOpen, onClose, onSuccess }) {
   const [quantityAdd, setQuantityAdd] = useState(1);
+  const [selectedLocationId, setSelectedLocationId] = useState('');
   const [reason, setReason] = useState('Purchased');
   const [customReason, setCustomReason] = useState('');
   const [notes, setNotes] = useState('');
@@ -22,6 +24,7 @@ function AddStockModal({ item, isOpen, onClose, onSuccess }) {
   useEffect(() => {
     if (isOpen && item) {
       setQuantityAdd(1);
+      setSelectedLocationId(item.locations && item.locations.length > 0 ? item.locations[0].node?._id || '' : '');
       setReason('Purchased');
       setCustomReason('');
       setNotes('');
@@ -38,7 +41,8 @@ function AddStockModal({ item, isOpen, onClose, onSuccess }) {
   // Validation checks
   const isQtyValid = Number.isInteger(numQty) && numQty >= 1;
   const isReasonValid = reason === 'Other' ? Boolean(customReason.trim()) : Boolean(reason);
-  const isFormValid = isQtyValid && isReasonValid && !submitting;
+  const isLocationValid = Boolean(selectedLocationId);
+  const isFormValid = isQtyValid && isReasonValid && isLocationValid && !submitting;
 
   let qtyError = '';
   if (quantityAdd !== '' && (!Number.isInteger(numQty) || numQty < 1)) {
@@ -60,6 +64,7 @@ function AddStockModal({ item, isOpen, onClose, onSuccess }) {
     try {
       const response = await createStockInRecord({
         itemId: item._id,
+        locationId: selectedLocationId,
         quantity: numQty,
         reason,
         customReason: customReason.trim(),
@@ -129,20 +134,27 @@ function AddStockModal({ item, isOpen, onClose, onSuccess }) {
             </div>
           )}
 
-          {/* Current Stock Banner */}
-          <div className="bg-slate-100 border border-slate-200 p-3.5 rounded-xl flex items-center justify-between">
-            <div>
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Item Location</span>
-              <span className="font-mono text-xs font-bold text-indigo-600 mt-0.5 block">📍 {item.location?.code}</span>
+          {/* Location Selection & Stock Summary */}
+          <div className="bg-slate-100 border border-slate-200 p-3.5 rounded-xl space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Add Stock To</span>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Current Total Stock</span>
+                <span className={`text-sm font-extrabold mt-0.5 block ${
+                  currentStock > 5 ? 'text-emerald-600' : currentStock > 0 ? 'text-amber-600' : 'text-rose-600'
+                }`}>
+                  {currentStock} total
+                </span>
+              </div>
             </div>
-            <div className="text-right">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Current Stock</span>
-              <span className={`text-sm font-extrabold mt-0.5 block ${
-                currentStock > 5 ? 'text-emerald-600' : currentStock > 0 ? 'text-amber-600' : 'text-rose-600'
-              }`}>
-                {currentStock} {currentStock === 1 ? 'unit' : 'units'} available
-              </span>
-            </div>
+            
+            <LocationSelector 
+              value={selectedLocationId}
+              onChange={setSelectedLocationId}
+              disabled={submitting}
+            />
           </div>
 
           {/* Quantity to Add Input */}
@@ -233,12 +245,12 @@ function AddStockModal({ item, isOpen, onClose, onSuccess }) {
 
           {/* Confirmation summary box */}
           {isQtyValid && isReasonValid && (
-            <div className="bg-emerald-950/30 border border-emerald-200 p-3 rounded-xl text-xs text-emerald-300 flex items-center gap-2">
+            <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-xl text-xs font-medium text-emerald-900 flex items-center gap-2">
               <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <span>
-                Add <strong>+{numQty}</strong> units to <strong>{item.name}</strong> ({currentStock} → <strong>{currentStock + numQty}</strong> available)?
+                Add <strong className="font-extrabold text-emerald-950">+{numQty}</strong> units to <strong className="font-extrabold text-emerald-950">{item.name}</strong> ({currentStock} &rarr; <strong className="font-extrabold text-emerald-950">{currentStock + numQty}</strong> available)?
               </span>
             </div>
           )}

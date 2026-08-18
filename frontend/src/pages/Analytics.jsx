@@ -437,7 +437,7 @@ function Analytics() {
 
                   <Link
                     to={`/inventory/${item._id}`}
-                    className="bg-amber-100 hover:bg-amber-50 text-amber-300 hover:text-slate-950 border border-amber-300 text-xs font-extrabold px-3 py-2 rounded-xl transition-all shrink-0"
+                    className="bg-amber-100 hover:bg-amber-200 text-amber-800 hover:text-amber-950 border border-amber-300 text-xs font-extrabold px-3 py-2 rounded-xl transition-all shrink-0"
                   >
                     View Item
                   </Link>

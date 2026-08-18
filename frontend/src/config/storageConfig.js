@@ -1,3 +1,5 @@
+import { resolveNodeHierarchy } from '../utils/locationUtils';
+
 /**
  * Image references for the 6-box physical storage rack.
  * 0 = All boxes closed
@@ -14,23 +16,23 @@ export const storageImages = {
 };
 
 /**
- * Resolves item location to physical storage drawer (1..6).
- * Items from Unit 1 -> Box 1, Unit 2 -> Box 2, Unit 3 -> Box 3, Unit 4 -> Box 4, Unit 5 -> Box 5, Unit 6 -> Box 6.
+ * Resolves item locations to physical storage drawer numbers (1..6).
+ * Uses StorageNode tree hierarchy to determine the authoritative primary storage unit (1..6).
  */
-export const getPhysicalDrawerNumber = (location) => {
-  if (!location) return 0;
+export const getPhysicalDrawerNumbers = (locations, tree) => {
+  if (!locations || !Array.isArray(locations)) return [];
   
-  // Storage Unit 1..6 maps directly to Physical Box 1..6 on the storage rack
-  const unitNum = Number(location.storageUnit);
-  if (!isNaN(unitNum) && unitNum > 0) {
-    return ((unitNum - 1) % 6) + 1;
-  }
+  const drawers = new Set();
   
-  // Fallback to box number if storageUnit is omitted
-  const boxNum = Number(location.box);
-  if (!isNaN(boxNum) && boxNum > 0) {
-    return ((boxNum - 1) % 6) + 1;
-  }
+  locations.forEach(loc => {
+    const node = loc.node;
+    if (!node) return;
+    
+    const resolved = resolveNodeHierarchy(node, tree);
+    if (resolved && resolved.physicalDrawer >= 1 && resolved.physicalDrawer <= 6) {
+      drawers.add(resolved.physicalDrawer);
+    }
+  });
   
-  return 0;
+  return Array.from(drawers);
 };

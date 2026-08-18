@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { StorageProvider } from './context/StorageContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import Layout from './components/layout/Layout';
 import LoginPage from './pages/LoginPage';
@@ -18,6 +19,7 @@ import Profile from './pages/Profile';
 function App() {
   return (
     <AuthProvider>
+      <StorageProvider>
       <Router>
         <Layout>
           <Routes>
@@ -110,6 +112,7 @@ function App() {
           </Routes>
         </Layout>
       </Router>
+      </StorageProvider>
       </AuthProvider>
   );
 }

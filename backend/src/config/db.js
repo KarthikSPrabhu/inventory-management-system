@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { runStorageMigration } = require('../utils/migrationUtils');
 
 const connectDB = async () => {
   const mongoURI = process.env.MONGODB_URI;
@@ -28,6 +29,9 @@ const connectDB = async () => {
   try {
     const conn = await mongoose.connect(mongoURI);
     console.log(`MongoDB Connected successfully to host: ${conn.connection.host}`);
+    
+    // Automatically trigger migration for Phase 20 hierarchical storage
+    await runStorageMigration();
   } catch (error) {
     console.error('FATAL DATABASE ERROR: MongoDB connection failed.');
     console.error(`Attempted Connection Host: ${safeHost}`);
