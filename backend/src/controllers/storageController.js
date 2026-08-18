@@ -137,14 +137,28 @@ exports.resolveStoragePath = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Section is required.' });
     }
     const secStr = String(section).trim().toUpperCase();
+    const isSectionA = secStr === 'A';
+    const isSectionB = secStr === 'B';
+
+    if (!isSectionA && !isSectionB) {
+      return res.status(400).json({ success: false, message: 'Section must be A or B.' });
+    }
 
     if (storageUnit === undefined || storageUnit === null || String(storageUnit).trim() === '') {
       return res.status(400).json({ success: false, message: 'Storage Unit is required.' });
     }
 
     const unitNum = Number(storageUnit);
-    if (isNaN(unitNum) || !Number.isInteger(unitNum) || unitNum < 1 || unitNum > 6) {
-      return res.status(400).json({ success: false, message: 'Primary Storage Unit must be an integer between 1 and 6.' });
+    if (isNaN(unitNum) || !Number.isInteger(unitNum) || unitNum < 1) {
+      return res.status(400).json({ success: false, message: 'Primary Storage Unit must be a positive integer.' });
+    }
+
+    if (isSectionA && unitNum > 6) {
+      return res.status(400).json({ success: false, message: 'Section A Primary Storage Unit must be between 1 and 6.' });
+    }
+
+    if (isSectionB && unitNum > 2) {
+      return res.status(400).json({ success: false, message: 'Section B Primary Storage Unit must be between 1 and 2.' });
     }
 
     const cleanBoxes = [];

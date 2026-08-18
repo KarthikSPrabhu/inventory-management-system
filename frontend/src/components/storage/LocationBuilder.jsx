@@ -48,9 +48,10 @@ const LocationBuilder = forwardRef(({
     const secStr = section.trim().toUpperCase();
     const unitStr = storageUnit.trim();
 
-    // Check validity: Storage Unit must be between 1 and 6 inclusive
+    // Check validity: Storage Unit must be between 1 and 6 inclusive for A, 1 and 2 inclusive for B
     const unitNum = Number(unitStr);
-    const isUnitValid = /^[1-9]\d*$/.test(unitStr) && !isNaN(unitNum) && unitNum >= 1 && unitNum <= 6;
+    const maxUnit = secStr === 'B' ? 2 : 6;
+    const isUnitValid = /^[1-9]\d*$/.test(unitStr) && !isNaN(unitNum) && unitNum >= 1 && unitNum <= maxUnit;
     
     let areBoxesValid = true;
     const currentBoxErrors = boxes.map((b) => {
@@ -136,15 +137,24 @@ const LocationBuilder = forwardRef(({
     const val = e.target.value.toUpperCase().trim().slice(0, 5); // Usually single char "A"
     setSection(val || 'A');
     setGeneralError('');
+    setStorageUnit('');
+    setUnitError('');
   };
 
   const handleUnitChange = (e) => {
     const val = e.target.value;
     setStorageUnit(val);
     setGeneralError('');
-    const num = Number(val.trim());
-    if (val && (!/^[1-9]\d*$/.test(val.trim()) || isNaN(num) || num < 1 || num > 6)) {
-      setUnitError('Primary Storage Unit must be between 1 and 6 (A01–A06)');
+    
+    if (val.trim() !== '') {
+      const unitNum = Number(val);
+      const secStr = section.trim().toUpperCase();
+      const maxUnit = secStr === 'B' ? 2 : 6;
+      if (!/^[1-9]\d*$/.test(val) || isNaN(unitNum) || unitNum < 1 || unitNum > maxUnit) {
+        setUnitError(`Storage Unit must be between 1 and ${maxUnit} for Section ${secStr}`);
+      } else {
+        setUnitError('');
+      }
     } else {
       setUnitError('');
     }
@@ -222,15 +232,20 @@ const LocationBuilder = forwardRef(({
             <span>SECTION <span className="text-indigo-600">*</span></span>
           </label>
           <div className="relative">
-            <input
-              type="text"
+            <select
               value={section}
               onChange={handleSectionChange}
               disabled={disabled}
-              placeholder="A"
-              maxLength={5}
-              className="w-full bg-white border border-slate-200 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm font-extrabold text-slate-900 uppercase focus:outline-none transition-colors"
-            />
+              className="w-full bg-white border border-slate-200 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm font-extrabold text-slate-900 uppercase focus:outline-none transition-colors appearance-none cursor-pointer"
+            >
+              <option value="A">Section A (6 Drawers)</option>
+              <option value="B">Section B (2 Cabinets)</option>
+            </select>
+            <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
           </div>
         </div>
 
@@ -247,6 +262,7 @@ const LocationBuilder = forwardRef(({
           <input
             type="number"
             min="1"
+            max={section.trim().toUpperCase() === 'B' ? 2 : 6}
             step="1"
             value={storageUnit}
             onChange={handleUnitChange}

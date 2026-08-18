@@ -54,6 +54,7 @@ function Inventory() {
   // activeBoxDrawer - box chosen via clicking Box 1-6 on the physical rack
   // isRackBoxFilter - true ONLY when a physical rack drawer is clicked directly to filter contents
   const [selectedItem, setSelectedItem] = useState(null);
+  const [activeSection, setActiveSection] = useState('A');
   const [activeBoxDrawer, setActiveBoxDrawer] = useState(0);
   const [isRackBoxFilter, setIsRackBoxFilter] = useState(false);
   const [isUnresolvableLocation, setIsUnresolvableLocation] = useState(false);
@@ -137,15 +138,21 @@ function Inventory() {
       setIsRackBoxFilter(false); // Keeps all catalog items visible!
 
       let drawerNum = 0;
+      let section = 'A';
       if (specificNode) {
         const resolved = resolveNodeHierarchy(specificNode, tree);
         drawerNum = resolved?.physicalDrawer || 0;
+        section = resolved?.section || 'A';
       } else {
         const drawers = getPhysicalDrawerNumbers(item.locations, tree);
-        drawerNum = drawers.length > 0 ? drawers[0] : 0;
+        if (drawers.length > 0) {
+          drawerNum = drawers[0].drawer;
+          section = drawers[0].section;
+        }
       }
 
       if (drawerNum > 0) {
+        setActiveSection(section);
         setActiveBoxDrawer(drawerNum);
         setIsUnresolvableLocation(false);
       } else {
@@ -181,7 +188,9 @@ function Inventory() {
       setActiveBoxDrawer(drawerNum);
       setIsRackBoxFilter(true);
       setIsUnresolvableLocation(false);
-      const itemsInDrawer = items.filter((it) => getPhysicalDrawerNumbers(it.locations, tree).includes(drawerNum));
+      const itemsInDrawer = items.filter((it) => 
+        getPhysicalDrawerNumbers(it.locations, tree).some(d => d.section === activeSection && d.drawer === drawerNum)
+      );
       if (itemsInDrawer.length > 0) {
         setSelectedItem(itemsInDrawer[0]);
       } else {
@@ -254,10 +263,10 @@ function Inventory() {
 
   // Client-side search & box drawer filtering
   const filteredItems = items.filter((item) => {
-    // Only filter out other items if user explicitly clicked a physical box on the rack visualizer directly!
     if (isRackBoxFilter && activeBoxDrawer > 0) {
       const itemDrawers = getPhysicalDrawerNumbers(item.locations, tree);
-      if (!itemDrawers.includes(activeBoxDrawer)) return false;
+      const isMatch = itemDrawers.some(d => d.section === activeSection && d.drawer === activeBoxDrawer);
+      if (!isMatch) return false;
     }
 
     if (searchQuery.trim()) {
@@ -464,8 +473,12 @@ function Inventory() {
           
           {/* PHYSICAL STORAGE RACK PANEL: Appears FIRST on mobile (order-1), RIGHT COLUMN on desktop (order-2, lg:col-span-5) */}
           <div ref={visualizerRef} className="order-1 lg:order-2 lg:col-span-5 space-y-5 lg:sticky lg:top-20 w-full">
+            
+
+
             {/* Storage Rack Visualizer */}
             <StorageVisualizer
+              activeSection={activeSection}
               selectedDrawer={activeBoxDrawer}
               selectedStorageUnit={activeBoxDrawer}
               unresolvable={isUnresolvableLocation}
@@ -474,6 +487,7 @@ function Inventory() {
               item={selectedItem}
               onSelectDrawer={handleSelectBoxDrawer}
               onReset={handleResetStorageView}
+              onSectionChange={(sec) => { setActiveSection(sec); setActiveBoxDrawer(0); setSelectedItem(null); setIsRackBoxFilter(false); }}
             />
 
             {/* Storage Location & Open Box Breakdown Panel */}

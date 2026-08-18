@@ -108,12 +108,12 @@ export const resolveNodeHierarchy = (node, tree) => {
   let primaryUnit = null;
   if (unitNode) {
     const parsed = parseInt(unitNode.code, 10);
-    if (!isNaN(parsed) && parsed >= 1 && parsed <= 6) {
+    if (!isNaN(parsed) && parsed >= 1) {
       primaryUnit = parsed;
     }
   } else if (typeof node === 'object' && node.code && node.type === 'STORAGE_UNIT') {
     const parsed = parseInt(node.code, 10);
-    if (!isNaN(parsed) && parsed >= 1 && parsed <= 6) {
+    if (!isNaN(parsed) && parsed >= 1) {
       primaryUnit = parsed;
     }
   }
