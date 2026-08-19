@@ -4,6 +4,7 @@ const InventoryAdjustment = require('../models/InventoryAdjustment');
 const InventoryItem = require('../models/InventoryItem');
 const Project = require('../models/Project');
 const { deepPopulateLocation } = require('../utils/locationUtils');
+const notificationService = require('../services/notificationService');
 const mongoose = require('mongoose');
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
@@ -110,6 +111,13 @@ exports.createUsage = async (req, res) => {
       await usage.save(session ? { session } : undefined);
 
       if (session) await session.commitTransaction();
+
+      // Trigger Notifications in background
+      notificationService.checkItemThresholds(item, req.user);
+      notificationService.generateMovementAlert('OUT', qty, item, req.user, project, null);
+
+      // Check Project Shortage if needed (Project has items, we just used some)
+      // For phase 23, project shortage is if required > available. We can add a function `checkProjectShortages` if project had required amounts, but currently Project Model doesn't explicitly have required quantities per item, only total required. If it does, we check it.
 
       return res.status(201).json({
         success: true,

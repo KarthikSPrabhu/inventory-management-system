@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { checkHealth } from '../../services/inventoryService';
 import { useAuth } from '../../context/AuthContext';
+import NotificationBell from '../notifications/NotificationBell';
 
 function Layout({ children }) {
   const location = useLocation();
@@ -187,6 +188,8 @@ function Layout({ children }) {
         {/* Right Section: Controls, User Profile & Status */}
         <div className="flex items-center gap-2 sm:gap-4">
           
+          <NotificationBell />
+
           {/* User Profile Info */}
           {isAuthenticated && user && (
             <div className="flex items-center gap-2 sm:gap-3 bg-white shadow-sm border border-slate-200 px-2.5 sm:px-3 py-1.5 rounded-xl">

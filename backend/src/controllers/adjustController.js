@@ -1,6 +1,7 @@
 const InventoryAdjustment = require('../models/InventoryAdjustment');
 const InventoryItem = require('../models/InventoryItem');
 const { deepPopulateLocation } = require('../utils/locationUtils');
+const notificationService = require('../services/notificationService');
 const mongoose = require('mongoose');
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
@@ -94,6 +95,10 @@ exports.adjustStock = async (req, res) => {
       await adjustment.save(session ? { session } : undefined);
 
       if (session) await session.commitTransaction();
+
+      // Trigger notifications
+      notificationService.checkItemThresholds(item, req.user);
+      notificationService.generateAdjustmentAlert(diff, rawReason, item, req.user);
 
       return res.status(201).json({
         success: true,

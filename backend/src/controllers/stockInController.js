@@ -1,6 +1,7 @@
 const InventoryStockIn = require('../models/InventoryStockIn');
 const InventoryItem = require('../models/InventoryItem');
 const { deepPopulateLocation } = require('../utils/locationUtils');
+const notificationService = require('../services/notificationService');
 const mongoose = require('mongoose');
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
@@ -133,6 +134,10 @@ exports.createStockIn = async (req, res) => {
       await stockIn.save(session ? { session } : undefined);
 
       if (session) await session.commitTransaction();
+
+      // Trigger Notifications in background
+      notificationService.checkItemThresholds(item, req.user);
+      notificationService.generateMovementAlert('IN', qty, item, req.user, null, null);
 
       return res.status(201).json({
         success: true,

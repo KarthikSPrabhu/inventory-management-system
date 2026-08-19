@@ -164,6 +164,10 @@ app.use('/api/analytics', analyticsRoutes);
 const dashboardRoutes = require('./routes/dashboardRoutes');
 app.use('/api/dashboard', dashboardRoutes);
 
+// Register Notification REST routes
+const notificationRoutes = require('./routes/notificationRoutes');
+app.use('/api/notifications', notificationRoutes);
+
 // Register Buy List REST routes
 const buyListRoutes = require('./routes/buyListRoutes');
 app.use('/api/buy-list', buyListRoutes);

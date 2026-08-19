@@ -2,6 +2,7 @@ const InventoryItem = require('../models/InventoryItem');
 const InventoryUsage = require('../models/InventoryUsage');
 const InventoryStockIn = require('../models/InventoryStockIn');
 const { deepPopulateLocation } = require('../utils/locationUtils');
+const notificationService = require('../services/notificationService');
 const mongoose = require('mongoose');
 
 // Helper to validate ObjectId
@@ -298,6 +299,9 @@ exports.updateInventoryItem = async (req, res) => {
     }
     
     await item.save();
+    
+    // Trigger Notifications in background
+    notificationService.checkItemThresholds(item, req.user);
     
     res.status(200).json({
       success: true,
