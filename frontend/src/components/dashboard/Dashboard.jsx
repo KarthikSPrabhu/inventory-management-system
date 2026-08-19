@@ -64,8 +64,12 @@ const Dashboard = ({ items, tree, isAdmin, onAction }) => {
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* 1. TOP SUMMARY METRICS */}
+      {/* 1. TOP SUMMARY METRICS */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)]">
+        <div 
+          onClick={() => onAction && onAction('catalog', { status: 'All' })}
+          className="bg-white border border-slate-200 rounded-2xl p-4 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] cursor-pointer hover:border-indigo-300 transition-all"
+        >
           <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Total Items</p>
           <div className="text-3xl font-black text-slate-800">{summary.totalItems}</div>
         </div>
@@ -73,7 +77,10 @@ const Dashboard = ({ items, tree, isAdmin, onAction }) => {
           <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Total Stock</p>
           <div className="text-3xl font-black text-indigo-600">{summary.totalQuantity}</div>
         </div>
-        <div className="bg-white border border-rose-100 rounded-2xl p-4 shadow-[0_4px_20px_-10px_rgba(225,29,72,0.08)] bg-gradient-to-br from-white to-rose-50/30">
+        <div 
+          onClick={() => onAction && onAction('catalog', { status: 'Low Stock' })}
+          className="bg-white border border-rose-100 rounded-2xl p-4 shadow-[0_4px_20px_-10px_rgba(225,29,72,0.08)] bg-gradient-to-br from-white to-rose-50/30 cursor-pointer hover:border-rose-300 transition-all"
+        >
           <p className="text-[10px] text-rose-400 font-black uppercase tracking-widest mb-1">Low / Out</p>
           <div className="text-3xl font-black text-rose-600">{stockStatus.lowStock + stockStatus.outOfStock}</div>
         </div>
@@ -97,7 +104,12 @@ const Dashboard = ({ items, tree, isAdmin, onAction }) => {
           <div className="space-y-4">
             {outOfStockItems.length > 0 && (
               <div>
-                <h5 className="text-[11px] font-bold text-rose-600 uppercase tracking-widest mb-2 bg-rose-50 inline-block px-2 py-0.5 rounded">Out of Stock ({outOfStockItems.length})</h5>
+                <button
+                  onClick={() => onAction && onAction('catalog', { status: 'Out of Stock' })}
+                  className="text-[11px] font-bold text-rose-600 uppercase tracking-widest mb-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 inline-block px-2.5 py-0.5 rounded cursor-pointer transition-colors"
+                >
+                  Out of Stock ({outOfStockItems.length}) →
+                </button>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {outOfStockItems.map(item => (
                     <div key={item._id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
@@ -116,7 +128,12 @@ const Dashboard = ({ items, tree, isAdmin, onAction }) => {
             
             {lowStockItems.length > 0 && (
               <div>
-                <h5 className="text-[11px] font-bold text-amber-600 uppercase tracking-widest mb-2 bg-amber-50 inline-block px-2 py-0.5 rounded">Low Stock ({lowStockItems.length})</h5>
+                <button
+                  onClick={() => onAction && onAction('catalog', { status: 'Low Stock' })}
+                  className="text-[11px] font-bold text-amber-600 uppercase tracking-widest mb-2 bg-amber-50 hover:bg-amber-100 border border-amber-200 inline-block px-2.5 py-0.5 rounded cursor-pointer transition-colors"
+                >
+                  Low Stock ({lowStockItems.length}) →
+                </button>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {lowStockItems.map(item => (
                     <div key={item._id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
@@ -140,7 +157,10 @@ const Dashboard = ({ items, tree, isAdmin, onAction }) => {
       <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
         <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight mb-4">Physical Storage Utilization</h4>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <div className="space-y-2">
+          <div 
+            onClick={() => onAction && onAction('catalog', { section: 'A' })}
+            className="space-y-2 cursor-pointer p-3 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all"
+          >
             <div className="flex justify-between items-end">
               <div>
                 <h5 className="text-xs font-bold text-slate-800 uppercase tracking-widest">Section A</h5>
@@ -153,7 +173,10 @@ const Dashboard = ({ items, tree, isAdmin, onAction }) => {
             </div>
           </div>
           
-          <div className="space-y-2">
+          <div 
+            onClick={() => onAction && onAction('catalog', { section: 'B' })}
+            className="space-y-2 cursor-pointer p-3 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all"
+          >
             <div className="flex justify-between items-end">
               <div>
                 <h5 className="text-xs font-bold text-slate-800 uppercase tracking-widest">Section B</h5>

@@ -28,14 +28,30 @@ const authenticatedFetch = async (url, options = {}) => {
   return response;
 };
 
+// Fetch inventory categories
+export const getInventoryCategories = async () => {
+  const response = await authenticatedFetch('/api/inventory/categories');
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to fetch categories');
+  }
+  return response.json();
+};
+
 // Fetch all inventory items
 export const getItems = async (params = {}) => {
   const query = new URLSearchParams();
   if (params.page) query.append('page', params.page);
   if (params.limit) query.append('limit', params.limit);
   if (params.search) query.append('search', params.search);
+  if (params.section) query.append('section', params.section);
+  if (params.storageUnit) query.append('storageUnit', params.storageUnit);
+  if (params.container) query.append('container', params.container);
+  if (params.locationNode) query.append('locationNode', params.locationNode);
   if (params.category) query.append('category', params.category);
   if (params.status) query.append('status', params.status);
+  if (params.project) query.append('project', params.project);
+  if (params.buyList) query.append('buyList', params.buyList);
   if (params.sort) query.append('sort', params.sort);
 
   const queryString = query.toString();

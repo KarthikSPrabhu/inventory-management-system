@@ -1,7 +1,7 @@
 const InventoryItem = require('../models/InventoryItem');
 const InventoryUsage = require('../models/InventoryUsage');
 const InventoryStockIn = require('../models/InventoryStockIn');
-const { deepPopulateLocation } = require('../utils/locationUtils');
+const { deepPopulateLocation, generateLocationDisplayId } = require('../utils/locationUtils');
 const notificationService = require('../services/notificationService');
 const mongoose = require('mongoose');
 
@@ -135,76 +135,392 @@ exports.createInventoryItem = async (req, res) => {
   }
 };
 
-// @desc    Get all inventory items
+const StorageNode = require('../models/StorageNode');
+const Project = require('../models/Project');
+const BuyListItem = require('../models/BuyListItem');
+
+// Helper to get hierarchical storage nodes map & descendant collector
+const getStorageHierarchyHelper = async () => {
+  const nodes = await StorageNode.find().lean();
+  const nodeMap = new Map();
+  const childrenMap = new Map();
+
+  nodes.forEach((node) => {
+    nodeMap.set(String(node._id), node);
+    const pId = node.parentId ? String(node.parentId) : null;
+    if (!childrenMap.has(pId)) childrenMap.set(pId, []);
+    childrenMap.get(pId).push(node);
+  });
+
+  const getPathCodes = (node) => {
+    const path = [];
+    let current = node;
+    while (current) {
+      path.unshift(current.code);
+      current = current.parentId ? nodeMap.get(String(current.parentId)) : null;
+    }
+    return path;
+  };
+
+  nodes.forEach((node) => {
+    node.displayId = generateLocationDisplayId(getPathCodes(node));
+  });
+
+  const getDescendantIds = (startNodeId) => {
+    const startStr = String(startNodeId);
+    const result = new Set([startStr]);
+    const queue = [startStr];
+    while (queue.length > 0) {
+      const currentId = queue.shift();
+      const children = childrenMap.get(currentId) || [];
+      for (const child of children) {
+        const cId = String(child._id);
+        if (!result.has(cId)) {
+          result.add(cId);
+          queue.push(cId);
+        }
+      }
+    }
+    return Array.from(result);
+  };
+
+  return { nodes, nodeMap, childrenMap, getDescendantIds };
+};
+
+// @desc    Get all unique inventory categories
+// @route   GET /api/inventory/categories
+// @access  Private (requireAuth)
+exports.getInventoryCategories = async (req, res) => {
+  try {
+    const categories = await InventoryItem.distinct('category', { isArchived: { $ne: true } });
+    const cleaned = categories.map(c => (c || '').trim()).filter(Boolean);
+    const uniqueCategories = Array.from(new Set(cleaned)).sort();
+    
+    res.status(200).json({
+      success: true,
+      data: uniqueCategories
+    });
+  } catch (error) {
+    console.error('Get Inventory Categories Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve categories'
+    });
+  }
+};
+
+// @desc    Get all inventory items with advanced search, location-hierarchy filtering, project & buy list filters, sorting & pagination
 // @route   GET /api/inventory
-// @access  Public
+// @access  Private (requireAuth)
 exports.getInventoryItems = async (req, res) => {
   try {
-    const { page, limit, search, category, status, sort } = req.query;
+    const {
+      page,
+      limit,
+      search,
+      section,
+      storageUnit,
+      locationNode,
+      container,
+      status,
+      category,
+      project,
+      buyList,
+      sort
+    } = req.query;
 
-    const query = { isArchived: { $ne: true } };
+    const baseQuery = { isArchived: { $ne: true } };
+    const queryAndConditions = [baseQuery];
 
-    if (search) {
-      const searchRegex = new RegExp(String(search).trim().replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i');
-      query.$or = [
-        { name: searchRegex },
-        { 'location.code': searchRegex },
-        { 'location.section': searchRegex },
-        { category: searchRegex }
-      ];
+    // Helper for intersecting matching node ID arrays
+    let allowedNodeIds = null;
+    const intersectNodeIds = (newIds) => {
+      const newSet = new Set(newIds.map(String));
+      if (allowedNodeIds === null) {
+        allowedNodeIds = newSet;
+      } else {
+        allowedNodeIds = new Set(Array.from(allowedNodeIds).filter(id => newSet.has(id)));
+      }
+    };
+
+    // Helper for intersecting matching item ID arrays
+    let allowedItemIds = null;
+    const intersectItemIds = (newIds) => {
+      const newSet = new Set(newIds.map(String));
+      if (allowedItemIds === null) {
+        allowedItemIds = newSet;
+      } else {
+        allowedItemIds = new Set(Array.from(allowedItemIds).filter(id => newSet.has(id)));
+      }
+    };
+
+    const storageHelper = await getStorageHierarchyHelper();
+
+    // 1. SECTION FILTER (A, B)
+    if (section && section !== 'All') {
+      const secUpper = String(section).trim().toUpperCase();
+      const sectionNodes = storageHelper.nodes.filter(n => n.section === secUpper);
+      const sectionNodeIds = [];
+      sectionNodes.forEach(n => {
+        const desc = storageHelper.getDescendantIds(n._id);
+        sectionNodeIds.push(...desc);
+      });
+      intersectNodeIds(sectionNodeIds);
     }
 
+    // 2. STORAGE UNIT FILTER (A01..A06, B01..B02, unit number, code, or node ID)
+    const unitQuery = storageUnit || req.query.unit;
+    if (unitQuery && unitQuery !== 'All') {
+      const uStr = String(unitQuery).trim();
+      const targetUnitNodes = storageHelper.nodes.filter(n => 
+        String(n._id) === uStr ||
+        n.displayId.toUpperCase() === uStr.toUpperCase() ||
+        n.code.toUpperCase() === uStr.toUpperCase() ||
+        (n.type === 'STORAGE_UNIT' && (n.code === uStr || n.code === uStr.padStart(2, '0') || String(parseInt(n.code, 10)) === uStr))
+      );
+
+      const unitNodeIds = [];
+      targetUnitNodes.forEach(n => {
+        unitNodeIds.push(...storageHelper.getDescendantIds(n._id));
+      });
+      intersectNodeIds(unitNodeIds);
+    }
+
+    // 3. CONTAINER / NESTED LOCATION FILTER
+    const containerQuery = container || locationNode;
+    if (containerQuery && containerQuery !== 'All') {
+      const cStr = String(containerQuery).trim();
+      const targetContainerNodes = storageHelper.nodes.filter(n => 
+        String(n._id) === cStr ||
+        n.displayId.toUpperCase() === cStr.toUpperCase() ||
+        n.code.toUpperCase() === cStr.toUpperCase()
+      );
+
+      const containerNodeIds = [];
+      targetContainerNodes.forEach(n => {
+        containerNodeIds.push(...storageHelper.getDescendantIds(n._id));
+      });
+      intersectNodeIds(containerNodeIds);
+    }
+
+    // Apply allowed node IDs if location filters were used
+    if (allowedNodeIds !== null) {
+      const nodeArray = Array.from(allowedNodeIds);
+      queryAndConditions.push({ 'locations.node': { $in: nodeArray } });
+    }
+
+    // 4. CATEGORY FILTER
     if (category && category !== 'All') {
-      query.category = category;
+      queryAndConditions.push({ category: String(category).trim() });
     }
 
+    // 5. STOCK STATUS FILTER
     if (status && status !== 'All') {
       if (status === 'Out of Stock') {
-        query.quantity = 0;
+        queryAndConditions.push({ quantity: 0 });
       } else if (status === 'Low Stock') {
-        query.quantity = { $gt: 0 };
-        query.$expr = { $lte: ['$quantity', '$minimumStock'] };
+        queryAndConditions.push({
+          quantity: { $gt: 0 },
+          $expr: {
+            $lte: [
+              '$quantity',
+              {
+                $cond: [
+                  { $gt: ['$minimumStock', 0] },
+                  '$minimumStock',
+                  { $ifNull: ['$lowStockThreshold', 5] }
+                ]
+              }
+            ]
+          }
+        });
       } else if (status === 'In Stock') {
-        query.$expr = { $gt: ['$quantity', '$minimumStock'] };
+        queryAndConditions.push({
+          $expr: {
+            $gt: [
+              '$quantity',
+              {
+                $cond: [
+                  { $gt: ['$minimumStock', 0] },
+                  '$minimumStock',
+                  { $ifNull: ['$lowStockThreshold', 5] }
+                ]
+              }
+            ]
+          }
+        });
       }
     }
 
-    let sortObj = { createdAt: -1 };
-    if (sort) {
-      if (sort === 'Name A-Z') sortObj = { name: 1 };
-      else if (sort === 'Name Z-A') sortObj = { name: -1 };
-      else if (sort === 'Quantity Low-High') sortObj = { quantity: 1 };
-      else if (sort === 'Quantity High-Low') sortObj = { quantity: -1 };
-      else if (sort === 'Recently Updated') sortObj = { updatedAt: -1 };
+    // 6. PROJECT FILTER
+    if (project && project !== 'All') {
+      const projStr = String(project).trim();
+      let targetProjectId = null;
+      if (isValidId(projStr)) {
+        targetProjectId = projStr;
+      } else {
+        const foundProj = await Project.findOne({
+          name: { $regex: new RegExp(`^${projStr.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') }
+        });
+        if (foundProj) targetProjectId = foundProj._id;
+      }
+
+      if (targetProjectId) {
+        const usageItems = await InventoryUsage.find({ project: targetProjectId }).distinct('item');
+        intersectItemIds(usageItems);
+      } else {
+        intersectItemIds([]);
+      }
     }
 
-    // Pagination
-    if (page && limit) {
-      const pageNum = Math.max(1, parseInt(page, 10));
-      const limitNum = Math.max(1, parseInt(limit, 10));
-      const skip = (pageNum - 1) * limitNum;
+    // 7. BUY LIST FILTER
+    if (buyList && buyList !== 'All') {
+      const buyListEntries = await BuyListItem.find({ status: 'NEEDED' }).select('name');
+      const neededNames = buyListEntries.map(b => b.name.trim().toLowerCase());
+      
+      const allActiveItems = await InventoryItem.find({ isArchived: { $ne: true } }).select('_id name');
+      const matchingBuyItemIds = allActiveItems
+        .filter(it => neededNames.includes(it.name.trim().toLowerCase()))
+        .map(it => String(it._id));
 
-      const items = await InventoryItem.find(query).populate(deepPopulateLocation).sort(sortObj).skip(skip).limit(limitNum);
-      const total = await InventoryItem.countDocuments(query);
-      const totalPages = Math.ceil(total / limitNum);
+      if (buyList === 'On Buy List' || buyList === 'true' || buyList === 'on') {
+        intersectItemIds(matchingBuyItemIds);
+      } else if (buyList === 'Not On Buy List' || buyList === 'false' || buyList === 'off') {
+        queryAndConditions.push({ _id: { $nin: matchingBuyItemIds } });
+      }
+    }
 
-      return res.status(200).json({
-        success: true,
-        count: items.length,
-        total,
-        page: pageNum,
-        totalPages,
-        data: items
+    if (allowedItemIds !== null) {
+      const itemArray = Array.from(allowedItemIds);
+      queryAndConditions.push({ _id: { $in: itemArray } });
+    }
+
+    // 8. PROMINENT MAIN SEARCH BAR (Search query)
+    if (search && String(search).trim()) {
+      const rawSearch = String(search).trim();
+      const searchRegex = new RegExp(rawSearch.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i');
+
+      // Search location hierarchy
+      const matchingSearchNodes = storageHelper.nodes.filter(n => 
+        n.displayId.toLowerCase().includes(rawSearch.toLowerCase()) ||
+        n.code.toLowerCase().includes(rawSearch.toLowerCase()) ||
+        n.name.toLowerCase().includes(rawSearch.toLowerCase())
+      );
+
+      const searchNodeIds = [];
+      matchingSearchNodes.forEach(n => {
+        searchNodeIds.push(...storageHelper.getDescendantIds(n._id));
+      });
+
+      // Search Projects
+      const matchingProjects = await Project.find({ name: searchRegex }).select('_id');
+      let searchProjectItemIds = [];
+      if (matchingProjects.length > 0) {
+        searchProjectItemIds = await InventoryUsage.find({ project: { $in: matchingProjects.map(p => p._id) } }).distinct('item');
+      }
+
+      // Search Buy List
+      const matchingBuyList = await BuyListItem.find({ name: searchRegex, status: 'NEEDED' }).select('name');
+      let searchBuyItemIds = [];
+      if (matchingBuyList.length > 0) {
+        const buyNames = matchingBuyList.map(b => b.name.trim().toLowerCase());
+        const activeItemsForBuy = await InventoryItem.find({ isArchived: { $ne: true } }).select('_id name');
+        searchBuyItemIds = activeItemsForBuy.filter(i => buyNames.includes(i.name.trim().toLowerCase())).map(i => i._id);
+      }
+
+      const searchOrClauses = [
+        { name: searchRegex },
+        { category: searchRegex },
+        { 'location.code': searchRegex },
+        { 'location.section': searchRegex }
+      ];
+
+      if (searchNodeIds.length > 0) {
+        searchOrClauses.push({ 'locations.node': { $in: searchNodeIds } });
+      }
+      if (searchProjectItemIds.length > 0) {
+        searchOrClauses.push({ _id: { $in: searchProjectItemIds } });
+      }
+      if (searchBuyItemIds.length > 0) {
+        searchOrClauses.push({ _id: { $in: searchBuyItemIds } });
+      }
+
+      queryAndConditions.push({ $or: searchOrClauses });
+    }
+
+    const finalQuery = queryAndConditions.length === 1 ? queryAndConditions[0] : { $and: queryAndConditions };
+
+    // 9. SORTING
+    let sortObj = { updatedAt: -1 };
+    let isUsageSort = false;
+    let usageSortOrder = 'desc';
+
+    if (sort) {
+      if (sort === 'Name A-Z' || sort === 'name_asc') sortObj = { name: 1 };
+      else if (sort === 'Name Z-A' || sort === 'name_desc') sortObj = { name: -1 };
+      else if (sort === 'Quantity Low-High' || sort === 'qty_asc') sortObj = { quantity: 1 };
+      else if (sort === 'Quantity High-Low' || sort === 'qty_desc') sortObj = { quantity: -1 };
+      else if (sort === 'Recently Added' || sort === 'created_desc') sortObj = { createdAt: -1 };
+      else if (sort === 'Recently Updated' || sort === 'updated_desc') sortObj = { updatedAt: -1 };
+      else if (sort === 'Most Used' || sort === 'most_used') {
+        isUsageSort = true;
+        usageSortOrder = 'desc';
+      } else if (sort === 'Least Used' || sort === 'least_used') {
+        isUsageSort = true;
+        usageSortOrder = 'asc';
+      }
+    }
+
+    // Fetch items with deep populated storage node locations
+    let items = await InventoryItem.find(finalQuery).populate(deepPopulateLocation).sort(isUsageSort ? {} : sortObj);
+
+    // If sorting by Usage
+    if (isUsageSort) {
+      const usageAgg = await InventoryUsage.aggregate([
+        { $group: { _id: '$item', totalUsed: { $sum: '$quantity' } } }
+      ]);
+      const usageMap = new Map();
+      usageAgg.forEach(u => usageMap.set(String(u._id), u.totalUsed));
+
+      items.sort((a, b) => {
+        const uA = usageMap.get(String(a._id)) || 0;
+        const uB = usageMap.get(String(b._id)) || 0;
+        return usageSortOrder === 'desc' ? uB - uA : uA - uB;
       });
     }
 
-    // If no pagination requested, return all (for backward compatibility)
-    const items = await InventoryItem.find(query).populate(deepPopulateLocation).sort(sortObj);
+    const total = items.length;
+
+    // 10. PAGINATION
+    if (page || limit) {
+      const pageNum = Math.max(1, parseInt(page || 1, 10));
+      const limitNum = Math.max(1, parseInt(limit || 20, 10));
+      const totalPages = Math.ceil(total / limitNum) || 1;
+      const skip = (pageNum - 1) * limitNum;
+      const paginatedItems = items.slice(skip, skip + limitNum);
+
+      return res.status(200).json({
+        success: true,
+        count: paginatedItems.length,
+        total,
+        page: pageNum,
+        totalPages,
+        limit: limitNum,
+        data: paginatedItems
+      });
+    }
+
     res.status(200).json({
       success: true,
+      count: items.length,
+      total: items.length,
+      page: 1,
+      totalPages: 1,
+      limit: items.length,
       data: items
     });
   } catch (error) {
+    console.error('Get Inventory Items Error:', error);
     res.status(500).json({
       success: false,
       message: 'An internal server error occurred'

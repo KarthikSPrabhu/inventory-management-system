@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { getInventoryItems } from '../services/inventoryService';
+import { getInventoryItems, getInventoryCategories, getProjects } from '../services/inventoryService';
 import InventoryCard from '../components/inventory/InventoryCard';
 import InventoryEmptyState from '../components/inventory/InventoryEmptyState';
 import StorageVisualizer from '../components/storage/StorageVisualizer';
@@ -38,48 +38,90 @@ function Inventory() {
   const { isAdmin } = useAuth();
   const { tree } = useStorage();
 
+  const activeTab = searchParams.get('tab') || 'dashboard';
   const searchQuery = searchParams.get('search') || '';
-  const filterCategory = searchParams.get('category') || 'All';
+  const filterSection = searchParams.get('section') || 'All';
+  const filterUnit = searchParams.get('storageUnit') || searchParams.get('unit') || 'All';
+  const filterContainer = searchParams.get('container') || searchParams.get('locationNode') || 'All';
   const filterStatus = searchParams.get('status') || 'All';
+  const filterCategory = searchParams.get('category') || 'All';
+  const filterProject = searchParams.get('project') || 'All';
+  const filterBuyList = searchParams.get('buyList') || 'All';
   const sortOption = searchParams.get('sort') || 'Recently Updated';
+  const currentPage = parseInt(searchParams.get('page') || '1', 10);
   
   const visualizerRef = useRef(null);
-  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' or 'catalog'
   const [items, setItems] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [flashMessage, setFlashMessage] = useState('');
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+  const [paginationInfo, setPaginationInfo] = useState({ total: 0, page: 1, totalPages: 1, count: 0, limit: 20 });
   
-  // Two-way state management:
-  // selectedItem - item chosen via clicking an item card
-  // activeBoxDrawer - box chosen via clicking Box 1-6 on the physical rack
-  // isRackBoxFilter - true ONLY when a physical rack drawer is clicked directly to filter contents
+  // Two-way state management for physical storage visualizer
   const [selectedItem, setSelectedItem] = useState(null);
   const [activeSection, setActiveSection] = useState('A');
   const [activeBoxDrawer, setActiveBoxDrawer] = useState(0);
   const [isRackBoxFilter, setIsRackBoxFilter] = useState(false);
   const [isUnresolvableLocation, setIsUnresolvableLocation] = useState(false);
 
-  // Phase 9: Take Item Modal state
+  // Modals state
   const [takeItemTarget, setTakeItemTarget] = useState(null);
   const [isTakeModalOpen, setIsTakeModalOpen] = useState(false);
 
-  // Phase 11: Add Stock Modal state
   const [addStockTarget, setAddStockTarget] = useState(null);
   const [isAddStockModalOpen, setIsAddStockModalOpen] = useState(false);
 
-  // Phase 20: Move Item Modal state
   const [moveItemTarget, setMoveItemTarget] = useState(null);
   const [isMoveItemModalOpen, setIsMoveItemModalOpen] = useState(false);
 
-  // Fetch all items from Atlas
+  // Fetch filter options (categories & projects)
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        const catRes = await getInventoryCategories();
+        if (catRes.success) setCategories(catRes.data || []);
+      } catch (e) { console.error('Categories error:', e); }
+
+      try {
+        const projRes = await getProjects();
+        if (projRes.success) setProjects(projRes.data || []);
+      } catch (e) { console.error('Projects error:', e); }
+    };
+    fetchOptions();
+  }, []);
+
+  // Fetch items from API with server-side filtering, sorting, and pagination
   const loadInventory = async () => {
     setLoading(true);
     setError('');
     try {
-      const response = await getInventoryItems();
+      const params = {
+        search: searchQuery,
+        section: filterSection,
+        storageUnit: filterUnit,
+        container: filterContainer,
+        status: filterStatus,
+        category: filterCategory,
+        project: filterProject,
+        buyList: filterBuyList,
+        sort: sortOption,
+        page: currentPage,
+        limit: 20
+      };
+
+      const response = await getInventoryItems(params);
       if (response.success) {
-        setItems(response.data);
+        setItems(response.data || []);
+        setPaginationInfo({
+          total: response.total !== undefined ? response.total : (response.data || []).length,
+          page: response.page || 1,
+          totalPages: response.totalPages || 1,
+          count: response.count !== undefined ? response.count : (response.data || []).length,
+          limit: response.limit || 20
+        });
       } else {
         throw new Error(response.message || 'Failed to retrieve catalog');
       }
@@ -93,7 +135,7 @@ function Inventory() {
 
   useEffect(() => {
     loadInventory();
-  }, []);
+  }, [searchQuery, filterSection, filterUnit, filterContainer, filterStatus, filterCategory, filterProject, filterBuyList, sortOption, currentPage]);
 
   // Handle flash messages
   useEffect(() => {
@@ -108,35 +150,38 @@ function Inventory() {
     }
   }, [routerLocation]);
 
-  // Sync Search & Filter state with router URL
+  // Sync parameters with URL query string
   const updateParams = (newParams) => {
     const params = new URLSearchParams(searchParams);
     Object.keys(newParams).forEach(key => {
-      if (newParams[key] && newParams[key] !== 'All') {
-        params.set(key, newParams[key]);
+      const val = newParams[key];
+      if (val !== undefined && val !== null && val !== '' && val !== 'All') {
+        params.set(key, val);
       } else {
         params.delete(key);
       }
     });
+
+    if (!('page' in newParams)) {
+      params.delete('page');
+    }
+
     setSearchParams(params);
   };
 
+  const handleTabChange = (tabName) => updateParams({ tab: tabName });
   const handleSearchChange = (query) => updateParams({ search: query });
-  const handleCategoryChange = (cat) => updateParams({ category: cat });
-  const handleStatusChange = (status) => updateParams({ status: status });
-  const handleSortChange = (sort) => updateParams({ sort: sort });
 
   // ITEM -> DRAWER: Clicking an item card or specific location badge
   const handleLocateItem = (item, specificNode = null) => {
     if (selectedItem && selectedItem._id === item._id && !specificNode) {
-      // Deselect
       setSelectedItem(null);
       setActiveBoxDrawer(0);
       setIsRackBoxFilter(false);
       setIsUnresolvableLocation(false);
     } else {
       setSelectedItem(item);
-      setIsRackBoxFilter(false); // Keeps all catalog items visible!
+      setIsRackBoxFilter(false);
 
       let drawerNum = 0;
       let section = 'A';
@@ -161,7 +206,6 @@ function Inventory() {
         setIsUnresolvableLocation(true);
       }
 
-      // Scroll to physical storage on mobile view
       if (window.innerWidth < 1024 && visualizerRef.current) {
         setTimeout(() => {
           visualizerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -170,17 +214,14 @@ function Inventory() {
     }
   };
 
-  // Select a specific location from multi-location list in StorageLocationPanel
   const handleSelectSpecificLocation = (node) => {
     if (selectedItem) {
       handleLocateItem(selectedItem, node);
     }
   };
 
-  // DRAWER -> ITEMS: Clicking Box 1..6 directly on the storage visualizer
   const handleSelectBoxDrawer = (drawerNum) => {
     if (activeBoxDrawer === drawerNum && isRackBoxFilter) {
-      // Toggle close on second click
       setActiveBoxDrawer(0);
       setSelectedItem(null);
       setIsRackBoxFilter(false);
@@ -200,7 +241,6 @@ function Inventory() {
     }
   };
 
-  // Reset storage view to default closed rack
   const handleResetStorageView = () => {
     setActiveBoxDrawer(0);
     setSelectedItem(null);
@@ -208,111 +248,94 @@ function Inventory() {
     setIsUnresolvableLocation(false);
   };
 
-  // Open Take Item Modal
-  const handleOpenTakeModal = (item) => {
-    setTakeItemTarget(item);
-    setIsTakeModalOpen(true);
-  };
+  // Modal handlers
+  const handleOpenTakeModal = (item) => { setTakeItemTarget(item); setIsTakeModalOpen(true); };
+  const handleCloseTakeModal = () => { setIsTakeModalOpen(false); setTakeItemTarget(null); };
+  const handleTakeSuccess = (flashMsg) => { setFlashMessage(flashMsg); loadInventory(); };
 
-  // Close Take Item Modal
-  const handleCloseTakeModal = () => {
-    setIsTakeModalOpen(false);
-    setTakeItemTarget(null);
-  };
+  const handleOpenAddStockModal = (item) => { setAddStockTarget(item); setIsAddStockModalOpen(true); };
+  const handleCloseAddStockModal = () => { setIsAddStockModalOpen(false); setAddStockTarget(null); };
+  const handleAddStockSuccess = (flashMsg) => { setFlashMessage(flashMsg); loadInventory(); };
 
-  // Handle successful withdrawal
-  const handleTakeSuccess = (flashMsg) => {
-    setFlashMessage(flashMsg);
-    loadInventory(); // Refresh items from Atlas to update quantities in real time
-  };
-
-  // Open Add Stock Modal
-  const handleOpenAddStockModal = (item) => {
-    setAddStockTarget(item);
-    setIsAddStockModalOpen(true);
-  };
-
-  // Close Add Stock Modal
-  const handleCloseAddStockModal = () => {
-    setIsAddStockModalOpen(false);
-    setAddStockTarget(null);
-  };
-
-  // Handle successful stock-in
-  const handleAddStockSuccess = (flashMsg) => {
-    setFlashMessage(flashMsg);
-    loadInventory(); // Refresh items from Atlas to update quantities in real time
-  };
-
-  // Open Move Item Modal
-  const handleOpenMoveModal = (item) => {
-    setMoveItemTarget(item);
-    setIsMoveItemModalOpen(true);
-  };
-
-  // Close Move Item Modal
-  const handleCloseMoveModal = () => {
-    setIsMoveItemModalOpen(false);
-    setMoveItemTarget(null);
-  };
-
-  // Handle successful move
-  const handleMoveSuccess = (flashMsg) => {
-    setFlashMessage(flashMsg);
-    loadInventory(); // Refresh items
-  };
-
-  // Client-side search & box drawer filtering
-  const filteredItems = items.filter((item) => {
-    if (isRackBoxFilter && activeBoxDrawer > 0) {
-      const itemDrawers = getPhysicalDrawerNumbers(item.locations, tree);
-      const isMatch = itemDrawers.some(d => d.section === activeSection && d.drawer === activeBoxDrawer);
-      if (!isMatch) return false;
-    }
-
-    if (searchQuery.trim()) {
-      const query = searchQuery.trim().toLowerCase();
-      const nameMatch = (item.name || '').toLowerCase().includes(query);
-      const codeMatch = (item.locations || []).some(loc => {
-        if (!loc.node) return false;
-        const displayCode = getLocationDisplayId(loc.node, tree);
-        return displayCode.toLowerCase().includes(query) || (loc.node.code || '').toLowerCase().includes(query);
-      });
-      const sectionMatch = (item.locations || []).some(loc => 
-        loc.node && (loc.node.section || '').toLowerCase().includes(query)
-      );
-
-      if (!(nameMatch || codeMatch || sectionMatch)) return false;
-    }
-
-    if (filterCategory !== 'All') {
-      if ((item.category || 'Other') !== filterCategory) return false;
-    }
-
-    if (filterStatus !== 'All') {
-      const minStock = item.minimumStock !== undefined ? item.minimumStock : (item.lowStockThreshold !== undefined ? item.lowStockThreshold : 0);
-      if (filterStatus === 'Out of Stock' && item.quantity > 0) return false;
-      if (filterStatus === 'Low Stock' && (item.quantity === 0 || item.quantity > minStock)) return false;
-      if (filterStatus === 'In Stock' && item.quantity <= minStock) return false;
-    }
-
-    return true;
-  });
-
-  // Client-side Sorting
-  filteredItems.sort((a, b) => {
-    if (sortOption === 'Name A-Z') return a.name.localeCompare(b.name);
-    if (sortOption === 'Name Z-A') return b.name.localeCompare(a.name);
-    if (sortOption === 'Quantity Low-High') return a.quantity - b.quantity;
-    if (sortOption === 'Quantity High-Low') return b.quantity - a.quantity;
-    // Default 'Recently Updated'
-    return new Date(b.updatedAt) - new Date(a.updatedAt);
-  });
+  const handleOpenMoveModal = (item) => { setMoveItemTarget(item); setIsMoveItemModalOpen(true); };
+  const handleCloseMoveModal = () => { setIsMoveItemModalOpen(false); setMoveItemTarget(null); };
+  const handleMoveSuccess = (flashMsg) => { setFlashMessage(flashMsg); loadInventory(); };
 
   // Calculate items assigned to currently open physical drawer
   const itemsInActiveDrawer = activeBoxDrawer > 0
-    ? items.filter((it) => getPhysicalDrawerNumbers(it.locations, tree).includes(activeBoxDrawer))
+    ? items.filter((it) => getPhysicalDrawerNumbers(it.locations, tree).some(d => d.section === activeSection && d.drawer === activeBoxDrawer))
     : [];
+
+  // Storage Units dropdown options depending on Section
+  const getAvailableUnits = () => {
+    if (filterSection === 'A') return ['A01', 'A02', 'A03', 'A04', 'A05', 'A06'];
+    if (filterSection === 'B') return ['B01', 'B02'];
+    return ['A01', 'A02', 'A03', 'A04', 'A05', 'A06', 'B01', 'B02'];
+  };
+
+  // Nested Containers options depending on selected Storage Unit
+  const getAvailableContainers = () => {
+    if (!tree || filterUnit === 'All') return [];
+    let unitNode = null;
+    for (const secNode of tree) {
+      if (secNode.children) {
+        for (const uNode of secNode.children) {
+          if (String(uNode._id) === filterUnit || uNode.displayId === filterUnit || uNode.code === filterUnit) {
+            unitNode = uNode;
+            break;
+          }
+        }
+      }
+    }
+    if (!unitNode || !unitNode.children) return [];
+    const containersList = [];
+    const traverse = (children) => {
+      children.forEach(c => {
+        containersList.push(c);
+        if (c.children && c.children.length > 0) traverse(c.children);
+      });
+    };
+    traverse(unitNode.children);
+    return containersList;
+  };
+
+  // Active Filter Chips
+  const activeFilterChips = [];
+  if (searchQuery) {
+    activeFilterChips.push({ key: 'search', label: `Search: "${searchQuery}"`, clear: () => updateParams({ search: '' }) });
+  }
+  if (filterSection !== 'All') {
+    activeFilterChips.push({ key: 'section', label: `Section: ${filterSection}`, clear: () => updateParams({ section: 'All', storageUnit: 'All', container: 'All' }) });
+  }
+  if (filterUnit !== 'All') {
+    activeFilterChips.push({ key: 'storageUnit', label: `Unit: ${filterUnit}`, clear: () => updateParams({ storageUnit: 'All', container: 'All' }) });
+  }
+  if (filterContainer !== 'All') {
+    activeFilterChips.push({ key: 'container', label: `Container: ${filterContainer}`, clear: () => updateParams({ container: 'All' }) });
+  }
+  if (filterStatus !== 'All') {
+    activeFilterChips.push({ key: 'status', label: `Status: ${filterStatus}`, clear: () => updateParams({ status: 'All' }) });
+  }
+  if (filterCategory !== 'All') {
+    activeFilterChips.push({ key: 'category', label: `Category: ${filterCategory}`, clear: () => updateParams({ category: 'All' }) });
+  }
+  if (filterProject !== 'All') {
+    const projName = projects.find(p => String(p._id) === filterProject || p.name === filterProject)?.name || filterProject;
+    activeFilterChips.push({ key: 'project', label: `Project: ${projName}`, clear: () => updateParams({ project: 'All' }) });
+  }
+  if (filterBuyList !== 'All') {
+    activeFilterChips.push({ key: 'buyList', label: `Buy List: ${filterBuyList}`, clear: () => updateParams({ buyList: 'All' }) });
+  }
+  const handleClearAllFilters = () => {
+    setSearchParams(new URLSearchParams(activeTab !== 'dashboard' ? { tab: activeTab } : {}));
+  };
+
+  // Filter items by clicked physical rack box when isRackBoxFilter is active
+  const displayItems = isRackBoxFilter && activeBoxDrawer > 0
+    ? items.filter((it) => 
+        getPhysicalDrawerNumbers(it.locations, tree).some(d => d.section === activeSection && d.drawer === activeBoxDrawer)
+      )
+    : items;
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -373,8 +396,8 @@ function Inventory() {
       {/* Workspace Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
         <button
-          onClick={() => setActiveTab('dashboard')}
-          className={`text-xs font-bold px-4 py-2 rounded-t-lg transition-colors ${
+          onClick={() => handleTabChange('dashboard')}
+          className={`text-xs font-bold px-4 py-2 rounded-t-lg transition-colors cursor-pointer ${
             activeTab === 'dashboard'
               ? 'bg-slate-100 text-indigo-700 border-b-2 border-indigo-600'
               : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
@@ -383,8 +406,8 @@ function Inventory() {
           Intelligence Dashboard
         </button>
         <button
-          onClick={() => setActiveTab('catalog')}
-          className={`text-xs font-bold px-4 py-2 rounded-t-lg transition-colors ${
+          onClick={() => handleTabChange('catalog')}
+          className={`text-xs font-bold px-4 py-2 rounded-t-lg transition-colors cursor-pointer ${
             activeTab === 'catalog'
               ? 'bg-slate-100 text-indigo-700 border-b-2 border-indigo-600'
               : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
@@ -394,83 +417,373 @@ function Inventory() {
         </button>
       </div>
 
-      {/* Filters and Controls (Only show if catalog is active) */}
-      {activeTab === 'catalog' && !loading && !error && items.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
-          
-          {/* Search */}
-          <div className="relative w-full md:w-1/3">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="Search items or location..."
-              className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500/60 rounded-xl pl-10 pr-10 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-colors"
-            />
-            {searchQuery && (
+      {/* SEARCH AND MULTI-FILTER CONTROL BAR (Only if Catalog tab active) */}
+      {activeTab === 'catalog' && (
+        <div className="space-y-4">
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-4">
+            
+            {/* Top Row: Search Input + Mobile Filter Button */}
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  placeholder="🔍 Search inventory by name, location ID, section, unit, container, category, project..."
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500/60 rounded-xl pl-10 pr-10 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-colors"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => {
+                      handleSearchChange('');
+                      handleResetStorageView();
+                    }}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+
+              {/* Mobile Filter Modal Toggle Button */}
               <button
-                onClick={() => {
-                  handleSearchChange('');
-                  handleResetStorageView();
-                }}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                onClick={() => setIsMobileFilterOpen(true)}
+                className="md:hidden flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 shrink-0"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                 </svg>
+                <span>FILTERS</span>
+                {activeFilterChips.length > 0 && (
+                  <span className="bg-indigo-600 text-slate-900 text-[10px] font-black rounded-full px-1.5 py-0.2">
+                    {activeFilterChips.length}
+                  </span>
+                )}
               </button>
-            )}
+            </div>
+
+            {/* Desktop Filter Bar (Hidden on Mobile) */}
+            <div className="hidden md:flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100">
+              
+              {/* Section Filter */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Section</span>
+                <select
+                  value={filterSection}
+                  onChange={(e) => updateParams({ section: e.target.value, storageUnit: 'All', container: 'All' })}
+                  className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="All">All</option>
+                  <option value="A">Section A</option>
+                  <option value="B">Section B</option>
+                </select>
+              </div>
+
+              {/* Storage Unit Filter */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Unit</span>
+                <select
+                  value={filterUnit}
+                  onChange={(e) => updateParams({ storageUnit: e.target.value, container: 'All' })}
+                  className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="All">All Units</option>
+                  {getAvailableUnits().map(u => (
+                    <option key={u} value={u}>{u}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Container Filter */}
+              {getAvailableContainers().length > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Container</span>
+                  <select
+                    value={filterContainer}
+                    onChange={(e) => updateParams({ container: e.target.value })}
+                    className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="All">All Containers</option>
+                    {getAvailableContainers().map(c => (
+                      <option key={c._id} value={c.displayId || c.code}>{c.displayId} ({c.name})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Status Filter */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Status</span>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => updateParams({ status: e.target.value })}
+                  className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="All">All Statuses</option>
+                  <option value="In Stock">🟢 In Stock</option>
+                  <option value="Low Stock">🟠 Low Stock</option>
+                  <option value="Out of Stock">🔴 Out of Stock</option>
+                </select>
+              </div>
+
+              {/* Category Filter */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Category</span>
+                <select
+                  value={filterCategory}
+                  onChange={(e) => updateParams({ category: e.target.value })}
+                  className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-indigo-500 max-w-[140px]"
+                >
+                  <option value="All">All Categories</option>
+                  {categories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Project Filter */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Project</span>
+                <select
+                  value={filterProject}
+                  onChange={(e) => updateParams({ project: e.target.value })}
+                  className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-indigo-500 max-w-[140px]"
+                >
+                  <option value="All">All Projects</option>
+                  {projects.map(p => (
+                    <option key={p._id} value={p._id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Buy List Filter */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Buy List</span>
+                <select
+                  value={filterBuyList}
+                  onChange={(e) => updateParams({ buyList: e.target.value })}
+                  className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="All">All</option>
+                  <option value="On Buy List">On Buy List</option>
+                  <option value="Not On Buy List">Not On Buy List</option>
+                </select>
+              </div>
+
+              {/* Sorting */}
+              <div className="flex items-center gap-1.5 ml-auto">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Sort</span>
+                <select
+                  value={sortOption}
+                  onChange={(e) => updateParams({ sort: e.target.value })}
+                  className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="Recently Updated">Recently Updated</option>
+                  <option value="Recently Added">Recently Added</option>
+                  <option value="Name A-Z">Name A → Z</option>
+                  <option value="Name Z-A">Name Z → A</option>
+                  <option value="Quantity Low-High">Quantity low → high</option>
+                  <option value="Quantity High-Low">Quantity high → low</option>
+                  <option value="Most Used">Most Used</option>
+                  <option value="Least Used">Least Used</option>
+                </select>
+              </div>
+            </div>
           </div>
-          
-          {/* Filters & Sort */}
-          <div className="flex flex-wrap md:flex-nowrap items-center gap-3 w-full md:w-auto">
-            <select
-              value={filterCategory}
-              onChange={(e) => handleCategoryChange(e.target.value)}
-              className="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500 min-w-[120px]"
-            >
-              <option value="All">All Categories</option>
-              <option value="Microcontrollers">Microcontrollers</option>
-              <option value="Sensors">Sensors</option>
-              <option value="Modules">Modules</option>
-              <option value="Motors">Motors</option>
-              <option value="Displays">Displays</option>
-              <option value="LEDs">LEDs</option>
-              <option value="Resistors">Resistors</option>
-              <option value="Capacitors">Capacitors</option>
-              <option value="Cables">Cables</option>
-              <option value="Power">Power</option>
-              <option value="Tools">Tools</option>
-              <option value="Other">Other</option>
-            </select>
 
-            <select
-              value={filterStatus}
-              onChange={(e) => handleStatusChange(e.target.value)}
-              className="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500 min-w-[110px]"
-            >
-              <option value="All">All Statuses</option>
-              <option value="In Stock">🟢 In Stock</option>
-              <option value="Low Stock">🟠 Low Stock</option>
-              <option value="Out of Stock">🔴 Out of Stock</option>
-            </select>
+          {/* Active Filter Chips Row */}
+          {activeFilterChips.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 px-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Filters:</span>
+              {activeFilterChips.map(chip => (
+                <span
+                  key={chip.key}
+                  className="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold px-2.5 py-1 rounded-lg"
+                >
+                  <span>{chip.label}</span>
+                  <button
+                    onClick={chip.clear}
+                    className="hover:text-indigo-900 transition-colors cursor-pointer"
+                    title="Remove filter"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
 
-            <select
-              value={sortOption}
-              onChange={(e) => handleSortChange(e.target.value)}
-              className="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500 min-w-[130px]"
-            >
-              <option value="Recently Updated">Recently Updated</option>
-              <option value="Name A-Z">Name A-Z</option>
-              <option value="Name Z-A">Name Z-A</option>
-              <option value="Quantity Low-High">Quantity Low-High</option>
-              <option value="Quantity High-Low">Quantity High-Low</option>
-            </select>
+              <button
+                onClick={handleClearAllFilters}
+                className="text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-1 rounded-lg transition-colors cursor-pointer ml-1"
+              >
+                Clear All
+              </button>
+            </div>
+          )}
+
+
+        </div>
+      )}
+
+      {/* Mobile Filter Modal Panel */}
+      {isMobileFilterOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex justify-end animate-fadeIn">
+          <div className="w-full max-w-xs bg-white h-full p-6 space-y-5 overflow-y-auto shadow-2xl flex flex-col justify-between">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">Filter Inventory</h4>
+                <button onClick={() => setIsMobileFilterOpen(false)} className="text-slate-400 hover:text-slate-600">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Mobile Section */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Section</label>
+                <select
+                  value={filterSection}
+                  onChange={(e) => updateParams({ section: e.target.value, storageUnit: 'All', container: 'All' })}
+                  className="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl p-2.5"
+                >
+                  <option value="All">All Sections</option>
+                  <option value="A">Section A</option>
+                  <option value="B">Section B</option>
+                </select>
+              </div>
+
+              {/* Mobile Storage Unit */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Storage Unit</label>
+                <select
+                  value={filterUnit}
+                  onChange={(e) => updateParams({ storageUnit: e.target.value, container: 'All' })}
+                  className="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl p-2.5"
+                >
+                  <option value="All">All Storage Units</option>
+                  {getAvailableUnits().map(u => (
+                    <option key={u} value={u}>{u}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Mobile Container */}
+              {getAvailableContainers().length > 0 && (
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700">Nested Container</label>
+                  <select
+                    value={filterContainer}
+                    onChange={(e) => updateParams({ container: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl p-2.5"
+                  >
+                    <option value="All">All Containers</option>
+                    {getAvailableContainers().map(c => (
+                      <option key={c._id} value={c.displayId || c.code}>{c.displayId} ({c.name})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Mobile Status */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Stock Status</label>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => updateParams({ status: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl p-2.5"
+                >
+                  <option value="All">All Statuses</option>
+                  <option value="In Stock">🟢 In Stock</option>
+                  <option value="Low Stock">🟠 Low Stock</option>
+                  <option value="Out of Stock">🔴 Out of Stock</option>
+                </select>
+              </div>
+
+              {/* Mobile Category */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Category</label>
+                <select
+                  value={filterCategory}
+                  onChange={(e) => updateParams({ category: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl p-2.5"
+                >
+                  <option value="All">All Categories</option>
+                  {categories.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Mobile Project */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Project</label>
+                <select
+                  value={filterProject}
+                  onChange={(e) => updateParams({ project: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl p-2.5"
+                >
+                  <option value="All">All Projects</option>
+                  {projects.map(p => (
+                    <option key={p._id} value={p._id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Mobile Buy List */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Buy List</label>
+                <select
+                  value={filterBuyList}
+                  onChange={(e) => updateParams({ buyList: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl p-2.5"
+                >
+                  <option value="All">All Items</option>
+                  <option value="On Buy List">On Buy List</option>
+                  <option value="Not On Buy List">Not On Buy List</option>
+                </select>
+              </div>
+
+              {/* Mobile Sort */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Sort By</label>
+                <select
+                  value={sortOption}
+                  onChange={(e) => updateParams({ sort: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl p-2.5"
+                >
+                  <option value="Recently Updated">Recently Updated</option>
+                  <option value="Recently Added">Recently Added</option>
+                  <option value="Name A-Z">Name A → Z</option>
+                  <option value="Name Z-A">Name Z → A</option>
+                  <option value="Quantity Low-High">Quantity low → high</option>
+                  <option value="Quantity High-Low">Quantity high → low</option>
+                  <option value="Most Used">Most Used</option>
+                  <option value="Least Used">Least Used</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-4 border-t border-slate-200">
+              <button
+                onClick={() => setIsMobileFilterOpen(false)}
+                className="w-full bg-indigo-600 text-slate-900 font-extrabold text-xs py-3 rounded-xl shadow-lg"
+              >
+                Apply Filters
+              </button>
+              <button
+                onClick={() => { handleClearAllFilters(); setIsMobileFilterOpen(false); }}
+                className="w-full bg-slate-100 text-slate-700 font-bold text-xs py-2.5 rounded-xl"
+              >
+                Clear All
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -490,17 +803,12 @@ function Inventory() {
         <div className="bg-white border border-slate-200 p-12 rounded-2xl text-center flex flex-col items-center justify-center">
           <p className="text-xs text-slate-500 italic">Could not sync catalog with MongoDB Atlas.</p>
         </div>
-      ) : items.length === 0 ? (
-        <InventoryEmptyState />
       ) : (
         /* ═══ WORKSPACE LAYOUT ═══ */
         <div className="flex flex-col lg:grid lg:grid-cols-12 gap-8 items-start">
           
-          {/* PHYSICAL STORAGE RACK PANEL: Appears FIRST on mobile (order-1), RIGHT COLUMN on desktop (order-2, lg:col-span-5) */}
+          {/* PHYSICAL STORAGE RACK PANEL */}
           <div ref={visualizerRef} className="order-1 lg:order-2 lg:col-span-5 space-y-5 lg:sticky lg:top-20 w-full">
-            
-
-
             {/* Storage Rack Visualizer */}
             <StorageVisualizer
               activeSection={activeSection}
@@ -532,9 +840,10 @@ function Inventory() {
                 items={items} 
                 tree={tree} 
                 isAdmin={isAdmin} 
-                onAction={(type) => {
-                  // e.g. Navigate to /buy-list or open modals
-                  if (type === 'catalog') setActiveTab('catalog');
+                onAction={(type, payload) => {
+                  if (type === 'catalog') {
+                    updateParams({ tab: 'catalog', ...payload });
+                  }
                 }} 
               />
             </div>
@@ -542,59 +851,105 @@ function Inventory() {
             <div className="order-2 lg:order-1 lg:col-span-7 space-y-4 w-full">
               <div className="flex items-center justify-between px-1">
                 <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  {isRackBoxFilter && activeBoxDrawer > 0 ? `Box ${activeBoxDrawer} Contents` : 'Inventory Catalog'}
-                </span>
-                <span className="bg-white border border-slate-200 text-indigo-600 font-mono text-[11px] font-bold px-2 py-0.5 rounded-md">
-                  {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'}
-                </span>
-              </div>
-            </div>
-
-            {filteredItems.length === 0 ? (
-              <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center flex flex-col items-center justify-center space-y-3">
-                <div className="h-12 w-12 rounded-full bg-slate-50 flex items-center justify-center text-amber-600 border border-slate-200">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                  </svg>
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                    {isRackBoxFilter && activeBoxDrawer > 0 ? `Box ${activeBoxDrawer} (Section ${activeSection}) Contents` : 'Inventory Catalog'}
+                  </span>
+                  <span className="bg-white border border-slate-200 text-indigo-600 font-mono text-[11px] font-bold px-2 py-0.5 rounded-md">
+                    {displayItems.length} {displayItems.length === 1 ? 'item' : 'items'}
+                  </span>
                 </div>
-                <h4 className="text-sm font-bold text-slate-900">
-                  {activeBoxDrawer > 0 ? `Box ${activeBoxDrawer} is currently empty` : `No items found matching "${searchQuery}"`}
-                </h4>
-                <p className="text-xs text-slate-500 max-w-xs">
-                  {activeBoxDrawer > 0 ? 'Click the opened drawer again on the physical rack to view all inventory.' : 'Try searching for an item name, location code, or storage section.'}
-                </p>
-                {searchQuery && (
+              </div>
+
+              {displayItems.length === 0 ? (
+                <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center flex flex-col items-center justify-center space-y-4 shadow-sm">
+                  <div className="h-12 w-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 border border-indigo-100">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-black text-slate-900">
+                      {isRackBoxFilter && activeBoxDrawer > 0 ? `Box ${activeBoxDrawer} (Section ${activeSection}) is currently empty` : 'No inventory items found.'}
+                    </h4>
+                    <p className="text-xs text-slate-500 max-w-xs mx-auto">
+                      {isRackBoxFilter && activeBoxDrawer > 0
+                        ? 'Click the opened drawer on the physical rack again or clear the box filter to view all catalog items.'
+                        : 'Try clearing some filters, using a different search term, or checking another storage section.'}
+                    </p>
+                  </div>
+
                   <button
-                    onClick={() => handleSearchChange('')}
-                    className="bg-indigo-100 hover:bg-indigo-600 text-indigo-300 hover:text-slate-900 border border-indigo-300 text-xs font-bold px-4 py-2 rounded-xl transition-all cursor-pointer mt-1"
+                    onClick={isRackBoxFilter ? handleResetStorageView : handleClearAllFilters}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-slate-900 text-xs font-extrabold px-5 py-2.5 rounded-xl transition-all shadow-md cursor-pointer"
                   >
-                    Clear Search
+                    {isRackBoxFilter ? 'Clear Box Filter' : 'Clear Filters'}
                   </button>
-                )}
-              </div>
-            ) : (
-              /* Scrollable Cards Grid for Inventory Items (Scrolls internally on Desktop, scrolls with page on Mobile) */
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:max-h-[780px] lg:overflow-y-auto lg:pr-1">
-                {filteredItems.map((item) => {
-                  const isSelected = selectedItem && selectedItem._id === item._id;
-                  
-                  return (
-                    <InventoryCard
-                      key={item._id}
-                      item={item}
-                      searchQuery={searchQuery}
-                      onLocate={handleLocateItem}
-                      onTakeItem={handleOpenTakeModal}
-                      onAddStock={isAdmin ? handleOpenAddStockModal : undefined}
-                      onMoveItem={isAdmin ? handleOpenMoveModal : undefined}
-                      isLocated={isSelected}
-                    />
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                </div>
+              ) : (
+                /* Scrollable Cards Grid for Inventory Items */
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:max-h-[760px] lg:overflow-y-auto lg:pr-1">
+                    {displayItems.map((item) => {
+                      const isSelected = selectedItem && selectedItem._id === item._id;
+                      
+                      return (
+                        <InventoryCard
+                          key={item._id}
+                          item={item}
+                          searchQuery={searchQuery}
+                          onLocate={handleLocateItem}
+                          onTakeItem={handleOpenTakeModal}
+                          onAddStock={isAdmin ? handleOpenAddStockModal : undefined}
+                          onMoveItem={isAdmin ? handleOpenMoveModal : undefined}
+                          isLocated={isSelected}
+                        />
+                      );
+                    })}
+                  </div>
+
+                  {/* Pagination Controls */}
+                  {paginationInfo.totalPages > 1 && (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-200 text-xs bg-white p-4 rounded-2xl border">
+                      <span className="text-slate-500 font-medium">
+                        Showing <strong className="text-slate-800">{((paginationInfo.page - 1) * paginationInfo.limit) + 1}</strong>–<strong className="text-slate-800">{Math.min(paginationInfo.page * paginationInfo.limit, paginationInfo.total)}</strong> of <strong className="text-slate-800">{paginationInfo.total}</strong> items
+                      </span>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => updateParams({ page: Math.max(1, paginationInfo.page - 1) })}
+                          disabled={paginationInfo.page <= 1}
+                          className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed font-bold"
+                        >
+                          Previous
+                        </button>
+
+                        {Array.from({ length: paginationInfo.totalPages }, (_, i) => i + 1).map(p => (
+                          <button
+                            key={p}
+                            onClick={() => updateParams({ page: p })}
+                            className={`w-8 h-8 rounded-lg font-bold transition-all cursor-pointer ${
+                              paginationInfo.page === p
+                                ? 'bg-indigo-600 text-slate-900 shadow-sm'
+                                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        ))}
+
+                        <button
+                          onClick={() => updateParams({ page: Math.min(paginationInfo.totalPages, paginationInfo.page + 1) })}
+                          disabled={paginationInfo.page >= paginationInfo.totalPages}
+                          className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed font-bold"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}

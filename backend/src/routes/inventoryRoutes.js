@@ -6,11 +6,15 @@ const {
   getInventoryItemById,
   updateInventoryItem,
   deleteInventoryItem,
-  moveItem
+  moveItem,
+  getInventoryCategories
 } = require('../controllers/inventoryController');
 const { adjustStock } = require('../controllers/adjustController');
 
 const { requireAuth, requireRole } = require('../middleware/authMiddleware');
+
+// Categories endpoint
+router.get('/categories', requireAuth, getInventoryCategories);
 
 // Collection operations: GET requires authentication (admin & member), POST requires admin role
 router.route('/')
