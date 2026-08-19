@@ -28,11 +28,12 @@ function Layout({ children }) {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
 
-  const isInventoryActive = (location.pathname.startsWith('/inventory') && location.pathname !== '/history' && location.pathname !== '/analytics' && location.pathname !== '/buy-list') || location.pathname === '/';
+  const isInventoryActive = (location.pathname.startsWith('/inventory') && location.pathname !== '/history' && location.pathname !== '/analytics' && location.pathname !== '/buy-list' && location.pathname !== '/reports') || location.pathname === '/';
   const isProjectsActive = location.pathname.startsWith('/projects');
   const isHistoryActive = location.pathname.startsWith('/history');
   const isAnalyticsActive = location.pathname.startsWith('/analytics');
   const isBuyListActive = location.pathname.startsWith('/buy-list');
+  const isReportsActive = location.pathname.startsWith('/reports');
   const isUsersActive = location.pathname.startsWith('/users');
   const isProfileActive = location.pathname.startsWith('/profile');
 
@@ -151,6 +152,20 @@ function Layout({ children }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
               </svg>
               <span>Buy List</span>
+            </Link>
+
+            <Link
+              to="/reports"
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all ${
+                isReportsActive
+                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-[0_2px_10px_rgba(99,102,241,0.1)]'
+                  : 'text-slate-500 hover:text-slate-900 hover:bg-white border border-transparent hover:shadow-sm'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span>Reports</span>
             </Link>
 
             {user?.role === 'admin' && (
@@ -316,6 +331,21 @@ function Layout({ children }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
               </svg>
               <span>Buy List</span>
+            </Link>
+
+            <Link
+              to="/reports"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-extrabold transition-all ${
+                isReportsActive
+                  ? 'bg-indigo-600/20 text-indigo-600 border border-indigo-300'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span>Reports</span>
             </Link>
 
             {user?.role === 'admin' && (

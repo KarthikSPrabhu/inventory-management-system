@@ -16,6 +16,8 @@ import BuyListPage from './pages/BuyListPage';
 import Users from './pages/Users';
 import Profile from './pages/Profile';
 
+import Reports from './pages/Reports';
+
 function App() {
   return (
     <AuthProvider>
@@ -88,6 +90,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <BuyListPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reports"
+              element={
+                <ProtectedRoute>
+                  <Reports />
                 </ProtectedRoute>
               }
             />
