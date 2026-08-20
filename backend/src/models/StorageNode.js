@@ -35,6 +35,8 @@ const StorageNodeSchema = new mongoose.Schema({
 });
 
 // Indexes for performance
+StorageNodeSchema.index({ parentId: 1, section: 1 });
+StorageNodeSchema.index({ code: 1, section: 1 });
 StorageNodeSchema.index({ parentId: 1 });
 StorageNodeSchema.index({ section: 1 });
 StorageNodeSchema.index({ type: 1 });

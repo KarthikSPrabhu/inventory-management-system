@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getBuyList, updateBuyListItem, deleteBuyListItem } from '../services/buyListService';
 import AddBuyListModal from '../components/buylist/AddBuyListModal';
 import { useAuth } from '../context/AuthContext';
+import useDebounce from '../hooks/useDebounce';
 
 function BuyListPage() {
   const { user, isAdmin } = useAuth();
@@ -9,7 +10,8 @@ function BuyListPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const debouncedSearch = useDebounce(searchInput, 300);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [flashMessage, setFlashMessage] = useState('');
 
@@ -34,8 +36,8 @@ function BuyListPage() {
   };
 
   useEffect(() => {
-    loadBuyList(searchQuery);
-  }, [searchQuery]);
+    loadBuyList(debouncedSearch);
+  }, [debouncedSearch]);
 
   // Flash message auto-clear
   useEffect(() => {
@@ -138,14 +140,14 @@ function BuyListPage() {
           </div>
           <input
             type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search buy list items..."
             className="w-full bg-white border border-slate-200 focus:border-indigo-500 rounded-2xl pl-12 pr-10 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition-colors shadow-md"
           />
-          {searchQuery && (
+          {searchInput && (
             <button
-              onClick={() => setSearchQuery('')}
+              onClick={() => setSearchInput('')}
               className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-500 hover:text-slate-600 transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -180,10 +182,10 @@ function BuyListPage() {
             </svg>
           </div>
           <h4 className="text-base font-bold text-slate-900">
-            {searchQuery ? `No items found matching "${searchQuery}"` : 'Your buy list is empty'}
+            {debouncedSearch ? `No items found matching "${debouncedSearch}"` : 'Your buy list is empty'}
           </h4>
           <p className="text-xs text-slate-500 max-w-sm">
-            {searchQuery ? 'Try searching for another item name or clear your search query.' : 'Add items you plan to purchase later for your robotics or electronics projects.'}
+            {debouncedSearch ? 'Try searching for another item name or clear your search query.' : 'Add items you plan to purchase later for your robotics or electronics projects.'}
           </p>
           {isAdmin && (
             <button

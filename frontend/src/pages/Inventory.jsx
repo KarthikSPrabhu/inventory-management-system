@@ -13,6 +13,7 @@ import { getPhysicalDrawerNumbers } from '../config/storageConfig';
 import { useAuth } from '../context/AuthContext';
 import { useStorage } from '../context/StorageContext';
 import { getLocationDisplayId, resolveNodeHierarchy } from '../utils/locationUtils';
+import useDebounce from '../hooks/useDebounce';
 
 // Skeleton Loader Card component
 const SkeletonCard = () => (
@@ -40,6 +41,9 @@ function Inventory() {
 
   const activeTab = searchParams.get('tab') || 'dashboard';
   const searchQuery = searchParams.get('search') || '';
+  const [searchInput, setSearchInput] = useState(searchQuery);
+  const debouncedSearch = useDebounce(searchInput, 300);
+
   const filterSection = searchParams.get('section') || 'All';
   const filterUnit = searchParams.get('storageUnit') || searchParams.get('unit') || 'All';
   const filterContainer = searchParams.get('container') || searchParams.get('locationNode') || 'All';
@@ -49,6 +53,18 @@ function Inventory() {
   const filterBuyList = searchParams.get('buyList') || 'All';
   const sortOption = searchParams.get('sort') || 'Recently Updated';
   const currentPage = parseInt(searchParams.get('page') || '1', 10);
+
+  // Sync debounced search value to searchParams
+  useEffect(() => {
+    if (debouncedSearch !== searchQuery) {
+      updateParams({ search: debouncedSearch });
+    }
+  }, [debouncedSearch]);
+
+  // Sync searchInput if URL changes externally (e.g. clearing filter chip)
+  useEffect(() => {
+    setSearchInput(searchQuery);
+  }, [searchQuery]);
   
   const visualizerRef = useRef(null);
   const [items, setItems] = useState([]);
@@ -432,14 +448,15 @@ function Inventory() {
                 </div>
                 <input
                   type="text"
-                  value={searchQuery}
-                  onChange={(e) => handleSearchChange(e.target.value)}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                   placeholder="🔍 Search inventory by name, location ID, section, unit, container, category, project..."
                   className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500/60 rounded-xl pl-10 pr-10 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-colors"
                 />
-                {searchQuery && (
+                {searchInput && (
                   <button
                     onClick={() => {
+                      setSearchInput('');
                       handleSearchChange('');
                       handleResetStorageView();
                     }}

@@ -89,6 +89,7 @@ exports.getAuditLogs = async (req, res) => {
     const [total, logs] = await Promise.all([
       AuditLog.countDocuments(query),
       AuditLog.find(query)
+        .select('-previousState -newState -metadata')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limitNum)

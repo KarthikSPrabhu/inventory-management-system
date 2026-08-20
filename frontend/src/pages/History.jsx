@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { getUsageRecords, getItems, getProjects } from '../services/inventoryService';
 import { useStorage } from '../context/StorageContext';
 import { getLocationDisplayId } from '../utils/locationUtils';
+import useDebounce from '../hooks/useDebounce';
 
 function History() {
   const { tree } = useStorage();
@@ -14,7 +15,8 @@ function History() {
 
   // Filter States
   const [activityType, setActivityType] = useState('all'); // 'all', 'stock_in', 'usage'
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const debouncedSearch = useDebounce(searchInput, 300);
   const [selectedItem, setSelectedItem] = useState('');
   const [selectedProject, setSelectedProject] = useState('');
   const [dateRange, setDateRange] = useState('all');
@@ -48,7 +50,7 @@ function History() {
         page,
         limit,
         activityType,
-        search: searchTerm,
+        search: debouncedSearch,
         itemId: selectedItem,
         projectId: selectedProject,
         dateRange
@@ -71,7 +73,7 @@ function History() {
 
   useEffect(() => {
     fetchHistory();
-  }, [page, activityType, selectedItem, selectedProject, dateRange]);
+  }, [page, activityType, debouncedSearch, selectedItem, selectedProject, dateRange]);
 
   // Handle Search submit
   const handleSearchSubmit = (e) => {
@@ -82,7 +84,7 @@ function History() {
 
   const handleResetFilters = () => {
     setActivityType('all');
-    setSearchTerm('');
+    setSearchInput('');
     setSelectedItem('');
     setSelectedProject('');
     setDateRange('all');
@@ -140,8 +142,8 @@ function History() {
             <input
               type="text"
               placeholder="Search activity..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700 placeholder-slate-400 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-indigo-500 transition-colors"
             />
             <button
@@ -229,7 +231,7 @@ function History() {
         </form>
 
         {/* Active Filters Pill Bar if any filter set */}
-        {(searchTerm || activityType !== 'all' || selectedItem || selectedProject || dateRange !== 'all') && (
+        {(debouncedSearch || activityType !== 'all' || selectedItem || selectedProject || dateRange !== 'all') && (
           <div className="flex items-center justify-between pt-2 border-t border-slate-200 text-xs">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[10px] uppercase font-extrabold text-slate-500">Active Filters:</span>
@@ -244,9 +246,9 @@ function History() {
                   {activityType === 'stock_in' ? '🟢 Stock In' : activityType === 'adjustment' ? '🟠 Adjustment' : '🔴 Stock Out'}
                 </span>
               )}
-              {searchTerm && (
+              {debouncedSearch && (
                 <span className="bg-indigo-100 text-indigo-300 border border-indigo-300 px-2.5 py-0.5 rounded-lg text-[11px] font-semibold">
-                  Search: "{searchTerm}"
+                  Search: "{debouncedSearch}"
                 </span>
               )}
               {selectedItem && (

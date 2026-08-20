@@ -19,20 +19,24 @@ const getDaysAgoDate = (days) => {
 // @access  Private
 exports.getDashboardSummary = async (req, res) => {
   try {
-    // 1. Fetch Summary Totals concurrently
+    const baseItemQuery = { isArchived: { $ne: true } };
+
+    // 1. Fetch Summary Totals & lightweight projected item data concurrently
     const [
       totalItemsCount,
       activeProjectsCount,
       buyListCount,
       allItems
     ] = await Promise.all([
-      InventoryItem.countDocuments({}),
+      InventoryItem.countDocuments(baseItemQuery),
       Project.countDocuments({ status: 'active' }),
-      BuyListItem.countDocuments({ status: 'pending' }),
-      InventoryItem.find({}).lean() // Need full items for multiple calculations
+      BuyListItem.countDocuments({ status: 'NEEDED' }),
+      InventoryItem.find(baseItemQuery)
+        .select('_id name quantity minimumStock lowStockThreshold category locations.node')
+        .lean()
     ]);
 
-    // 2. Compute Stock Status and Categories from allItems
+    // 2. Compute Stock Status and Categories in-memory from lightweight projection
     let totalQuantity = 0;
     let lowStockCount = 0;
     let outOfStockCount = 0;
@@ -43,7 +47,7 @@ exports.getDashboardSummary = async (req, res) => {
 
     allItems.forEach(item => {
       const q = Number(item.quantity) || 0;
-      const threshold = Number(item.lowStockThreshold !== undefined ? item.lowStockThreshold : 5);
+      const threshold = Number(item.minimumStock > 0 ? item.minimumStock : (item.lowStockThreshold !== undefined ? item.lowStockThreshold : 5));
       
       totalQuantity += q;
 
@@ -59,9 +63,11 @@ exports.getDashboardSummary = async (req, res) => {
       categoryMap.set(cat, (categoryMap.get(cat) || 0) + 1);
     });
 
-    const categorySummary = Array.from(categoryMap.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+    const categorySummary = Array.from(categoryMap.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
 
-    // 3. Most Used Items (All time or last 90 days)
+    // 3. Most Used Items (Last 90 days)
     const ninetyDaysAgo = getDaysAgoDate(90);
     const mostUsedAgg = await InventoryUsage.aggregate([
       { $match: { createdAt: { $gte: ninetyDaysAgo } } },
@@ -69,32 +75,51 @@ exports.getDashboardSummary = async (req, res) => {
       { $sort: { totalUsed: -1 } },
       { $limit: 5 },
       { $lookup: { from: 'inventoryitems', localField: '_id', foreignField: '_id', as: 'itemDoc' } },
-      { $unwind: { path: '$itemDoc', preserveNullAndEmptyArrays: true } }
+      { $unwind: { path: '$itemDoc', preserveNullAndEmptyArrays: true } },
+      { $project: { _id: 1, totalUsed: 1, name: '$itemDoc.name', category: '$itemDoc.category' } }
     ]);
 
     const mostUsedItems = mostUsedAgg.map(agg => ({
       _id: agg._id,
-      name: agg.itemDoc?.name || 'Unknown Item',
+      name: agg.name || 'Unknown Item',
       totalUsed: agg.totalUsed,
-      category: agg.itemDoc?.category
+      category: agg.category
     }));
 
-    // 4. Project Summary (Active Projects with usage)
-    const activeProjects = await Project.find({ status: 'active' }).limit(5).lean();
-    const projectSummary = await Promise.all(activeProjects.map(async (p) => {
-      const usages = await InventoryUsage.find({ project: p._id }).lean();
-      const uniqueItems = new Set(usages.map(u => u.item.toString())).size;
-      const totalUnits = usages.reduce((sum, u) => sum + (Number(u.quantity) || 0), 0);
+    // 4. Project Summary (Active Projects with aggregated usage)
+    const activeProjects = await Project.find({ status: 'active' }).select('_id name').limit(5).lean();
+    const activeProjectIds = activeProjects.map(p => p._id);
+
+    const projectUsages = await InventoryUsage.aggregate([
+      { $match: { project: { $in: activeProjectIds } } },
+      {
+        $group: {
+          _id: '$project',
+          uniqueItemsSet: { $addToSet: '$item' },
+          totalUnits: { $sum: '$quantity' }
+        }
+      }
+    ]);
+
+    const projectUsageMap = new Map();
+    projectUsages.forEach(pu => {
+      projectUsageMap.set(String(pu._id), {
+        uniqueItems: (pu.uniqueItemsSet || []).length,
+        totalUnits: pu.totalUnits || 0
+      });
+    });
+
+    const projectSummary = activeProjects.map(p => {
+      const stats = projectUsageMap.get(String(p._id)) || { uniqueItems: 0, totalUnits: 0 };
       return {
         _id: p._id,
         name: p.name,
-        uniqueItems,
-        totalUnits
+        uniqueItems: stats.uniqueItems,
+        totalUnits: stats.totalUnits
       };
-    }));
+    });
 
     // 5. Recent Activity (Last 10 events combined)
-    // We will fetch the latest 10 from each collection and merge/sort in memory
     const [latestStockIns, latestUsages, latestAdjustments] = await Promise.all([
       InventoryStockIn.find({}).sort({ createdAt: -1 }).limit(10).populate('item', 'name').lean(),
       InventoryUsage.find({}).sort({ createdAt: -1 }).limit(10).populate('item', 'name').populate('project', 'name').lean(),
@@ -110,42 +135,28 @@ exports.getDashboardSummary = async (req, res) => {
     recentActivity = recentActivity.slice(0, 10);
 
     // 6. Storage Utilization (Section A vs Section B)
-    // We will estimate utilization based on item presence in physical boxes
-    let sectionA_Items = 0;
-    let sectionB_Items = 0;
-    
-    // Quick heuristic: items that have location codes starting with A vs B
-    allItems.forEach(item => {
-      if (item.locations && item.locations.length > 0) {
-        // Just checking the first mapped location for simplicity
-        const mainLoc = item.locations[0];
-        // Note: The fully resolved logic might require traversing the tree, but for performance
-        // we can check if there's a cached string or just rely on the fact that Phase 20 hierarchical
-        // path often results in display IDs or node references.
-        // Actually, we should fetch StorageNodes and map them.
-      }
-    });
-    
-    // Better way: fetch all StorageNodes to map them
-    const allNodes = await StorageNode.find({}).lean();
-    const nodeMap = new Map(allNodes.map(n => [n._id.toString(), n]));
-    
+    const allNodes = await StorageNode.find({}).select('_id section parentId').lean();
+    const nodeMap = new Map(allNodes.map(n => [String(n._id), n]));
+
     const resolveRootSection = (nodeId) => {
-      let current = nodeMap.get(nodeId?.toString());
-      let section = 'A'; // default
+      let current = nodeMap.get(String(nodeId));
+      let section = 'A';
       while (current) {
         if (current.section) section = current.section;
-        if (!current.parent) break;
-        current = nodeMap.get(current.parent.toString());
+        if (!current.parentId) break;
+        current = nodeMap.get(String(current.parentId));
       }
       return section;
     };
 
+    let sectionA_Items = 0;
+    let sectionB_Items = 0;
+
     allItems.forEach(item => {
       if (item.locations && item.locations.length > 0) {
-        const section = resolveRootSection(item.locations[0].node);
-        if (section === 'A') sectionA_Items++;
-        if (section === 'B') sectionB_Items++;
+        const sec = resolveRootSection(item.locations[0].node);
+        if (sec === 'A') sectionA_Items++;
+        if (sec === 'B') sectionB_Items++;
       }
     });
 
@@ -169,8 +180,18 @@ exports.getDashboardSummary = async (req, res) => {
           lowStock: lowStockCount,
           outOfStock: outOfStockCount
         },
-        lowStockItems: lowStockItems.map(item => ({ _id: item._id, name: item.name, quantity: item.quantity, minStock: item.lowStockThreshold || 5, category: item.category })).slice(0, 10),
-        outOfStockItems: outOfStockItems.map(item => ({ _id: item._id, name: item.name, category: item.category })).slice(0, 10),
+        lowStockItems: lowStockItems.map(item => ({
+          _id: item._id,
+          name: item.name,
+          quantity: item.quantity,
+          minStock: item.minimumStock || item.lowStockThreshold || 5,
+          category: item.category
+        })).slice(0, 10),
+        outOfStockItems: outOfStockItems.map(item => ({
+          _id: item._id,
+          name: item.name,
+          category: item.category
+        })).slice(0, 10),
         mostUsedItems,
         recentActivity,
         projectSummary,

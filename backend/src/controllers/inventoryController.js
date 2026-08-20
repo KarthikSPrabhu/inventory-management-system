@@ -153,8 +153,23 @@ const StorageNode = require('../models/StorageNode');
 const Project = require('../models/Project');
 const BuyListItem = require('../models/BuyListItem');
 
+// Cache for Storage Hierarchy helper to avoid re-querying StorageNodes on every request
+let cachedStorageHierarchy = null;
+let lastStorageHierarchyFetch = 0;
+const STORAGE_HIERARCHY_TTL_MS = 60000; // 1 minute TTL
+
+const invalidateStorageHierarchyCache = () => {
+  cachedStorageHierarchy = null;
+  lastStorageHierarchyFetch = 0;
+};
+
 // Helper to get hierarchical storage nodes map & descendant collector
 const getStorageHierarchyHelper = async () => {
+  const now = Date.now();
+  if (cachedStorageHierarchy && (now - lastStorageHierarchyFetch < STORAGE_HIERARCHY_TTL_MS)) {
+    return cachedStorageHierarchy;
+  }
+
   const nodes = await StorageNode.find().lean();
   const nodeMap = new Map();
   const childrenMap = new Map();
@@ -198,7 +213,9 @@ const getStorageHierarchyHelper = async () => {
     return Array.from(result);
   };
 
-  return { nodes, nodeMap, childrenMap, getDescendantIds };
+  cachedStorageHierarchy = { nodes, nodeMap, childrenMap, getDescendantIds };
+  lastStorageHierarchyFetch = now;
+  return cachedStorageHierarchy;
 };
 
 // @desc    Get all unique inventory categories
@@ -375,7 +392,7 @@ exports.getInventoryItems = async (req, res) => {
       } else {
         const foundProj = await Project.findOne({
           name: { $regex: new RegExp(`^${projStr.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') }
-        });
+        }).select('_id');
         if (foundProj) targetProjectId = foundProj._id;
       }
 
@@ -392,10 +409,10 @@ exports.getInventoryItems = async (req, res) => {
       const buyListEntries = await BuyListItem.find({ status: 'NEEDED' }).select('name');
       const neededNames = buyListEntries.map(b => b.name.trim().toLowerCase());
       
-      const allActiveItems = await InventoryItem.find({ isArchived: { $ne: true } }).select('_id name');
-      const matchingBuyItemIds = allActiveItems
-        .filter(it => neededNames.includes(it.name.trim().toLowerCase()))
-        .map(it => String(it._id));
+      const matchingBuyItemIds = await InventoryItem.find({
+        isArchived: { $ne: true },
+        name: { $in: neededNames.map(n => new RegExp(`^${n.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i')) }
+      }).distinct('_id');
 
       if (buyList === 'On Buy List' || buyList === 'true' || buyList === 'on') {
         intersectItemIds(matchingBuyItemIds);
@@ -438,8 +455,10 @@ exports.getInventoryItems = async (req, res) => {
       let searchBuyItemIds = [];
       if (matchingBuyList.length > 0) {
         const buyNames = matchingBuyList.map(b => b.name.trim().toLowerCase());
-        const activeItemsForBuy = await InventoryItem.find({ isArchived: { $ne: true } }).select('_id name');
-        searchBuyItemIds = activeItemsForBuy.filter(i => buyNames.includes(i.name.trim().toLowerCase())).map(i => i._id);
+        searchBuyItemIds = await InventoryItem.find({
+          isArchived: { $ne: true },
+          name: { $in: buyNames.map(n => new RegExp(`^${n.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i')) }
+        }).distinct('_id');
       }
 
       const searchOrClauses = [
@@ -464,7 +483,7 @@ exports.getInventoryItems = async (req, res) => {
 
     const finalQuery = queryAndConditions.length === 1 ? queryAndConditions[0] : { $and: queryAndConditions };
 
-    // 9. SORTING
+    // 9. SORTING & PAGINATION
     let sortObj = { updatedAt: -1 };
     let isUsageSort = false;
     let usageSortOrder = 'desc';
@@ -485,52 +504,50 @@ exports.getInventoryItems = async (req, res) => {
       }
     }
 
-    // Fetch items with deep populated storage node locations
-    let items = await InventoryItem.find(finalQuery).populate(deepPopulateLocation).sort(isUsageSort ? {} : sortObj);
+    // Calculate total count and pagination parameters
+    const total = await InventoryItem.countDocuments(finalQuery);
+    const pageNum = Math.max(1, parseInt(page || 1, 10));
+    // Enforce max limit cap (max 100 per page to protect RAM)
+    const limitNum = Math.min(Math.max(1, parseInt(limit || 20, 10)), 100);
+    const totalPages = Math.ceil(total / limitNum) || 1;
+    const skip = (pageNum - 1) * limitNum;
 
-    // If sorting by Usage
+    let items;
     if (isUsageSort) {
       const usageAgg = await InventoryUsage.aggregate([
-        { $group: { _id: '$item', totalUsed: { $sum: '$quantity' } } }
+        { $group: { _id: '$item', totalUsed: { $sum: '$quantity' } } },
+        { $sort: { totalUsed: usageSortOrder === 'desc' ? -1 : 1 } }
       ]);
       const usageMap = new Map();
       usageAgg.forEach(u => usageMap.set(String(u._id), u.totalUsed));
 
-      items.sort((a, b) => {
+      const allMatching = await InventoryItem.find(finalQuery).select('_id').lean();
+      allMatching.sort((a, b) => {
         const uA = usageMap.get(String(a._id)) || 0;
         const uB = usageMap.get(String(b._id)) || 0;
         return usageSortOrder === 'desc' ? uB - uA : uA - uB;
       });
-    }
 
-    const total = items.length;
-
-    // 10. PAGINATION
-    if (page || limit) {
-      const pageNum = Math.max(1, parseInt(page || 1, 10));
-      const limitNum = Math.max(1, parseInt(limit || 20, 10));
-      const totalPages = Math.ceil(total / limitNum) || 1;
-      const skip = (pageNum - 1) * limitNum;
-      const paginatedItems = items.slice(skip, skip + limitNum);
-
-      return res.status(200).json({
-        success: true,
-        count: paginatedItems.length,
-        total,
-        page: pageNum,
-        totalPages,
-        limit: limitNum,
-        data: paginatedItems
-      });
+      const paginatedIds = allMatching.slice(skip, skip + limitNum).map(i => i._id);
+      const fetchedItems = await InventoryItem.find({ _id: { $in: paginatedIds } }).populate(deepPopulateLocation);
+      const itemMap = new Map(fetchedItems.map(i => [String(i._id), i]));
+      items = paginatedIds.map(id => itemMap.get(String(id))).filter(Boolean);
+    } else {
+      // Execute true server-side pagination with skip, limit, and populate
+      items = await InventoryItem.find(finalQuery)
+        .sort(sortObj)
+        .skip(skip)
+        .limit(limitNum)
+        .populate(deepPopulateLocation);
     }
 
     res.status(200).json({
       success: true,
       count: items.length,
-      total: items.length,
-      page: 1,
-      totalPages: 1,
-      limit: items.length,
+      total,
+      page: pageNum,
+      totalPages,
+      limit: limitNum,
       data: items
     });
   } catch (error) {

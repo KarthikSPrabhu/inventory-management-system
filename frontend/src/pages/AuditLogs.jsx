@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getAuditLogs } from '../services/auditService';
+import useDebounce from '../hooks/useDebounce';
 
 function AuditLogs() {
   const { user } = useAuth();
@@ -15,7 +16,8 @@ function AuditLogs() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const debouncedSearch = useDebounce(searchInput, 300);
   const [filterAction, setFilterAction] = useState('All');
   const [filterResource, setFilterResource] = useState('All');
   const [filterDateRange, setFilterDateRange] = useState('30days');
@@ -31,7 +33,7 @@ function AuditLogs() {
       const res = await getAuditLogs({
         page,
         limit: 20,
-        search: searchQuery,
+        search: debouncedSearch,
         action: filterAction,
         resourceType: filterResource,
         dateRange: filterDateRange
@@ -49,8 +51,10 @@ function AuditLogs() {
   };
 
   useEffect(() => {
-    fetchLogs();
-  }, [page, filterAction, filterResource, filterDateRange]);
+    if (isAdmin) {
+      fetchLogs();
+    }
+  }, [page, debouncedSearch, filterAction, filterResource, filterDateRange, isAdmin]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -108,15 +112,15 @@ function AuditLogs() {
             </div>
             <input
               type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               placeholder="🔍 Search audit log by description, user name, email, resource name, action..."
               className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-xl pl-9 pr-10 py-2.5 text-xs text-slate-900 focus:outline-none transition-colors"
             />
-            {searchQuery && (
+            {searchInput && (
               <button
                 type="button"
-                onClick={() => { setSearchQuery(''); setPage(1); fetchLogs(); }}
+                onClick={() => { setSearchInput(''); setPage(1); }}
                 className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 text-xs font-bold"
               >
                 ×

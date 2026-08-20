@@ -134,12 +134,14 @@ const InventoryItemSchema = new mongoose.Schema({
 });
 
 // Database indexes for performance
+InventoryItemSchema.index({ isArchived: 1, category: 1, quantity: 1, updatedAt: -1 });
+InventoryItemSchema.index({ isArchived: 1, name: 1 });
+InventoryItemSchema.index({ isArchived: 1, createdAt: -1 });
 InventoryItemSchema.index({ name: 1 });
 InventoryItemSchema.index({ 'location.code': 1 });
 InventoryItemSchema.index({ quantity: 1 });
 InventoryItemSchema.index({ category: 1 });
 InventoryItemSchema.index({ isArchived: 1 });
-
 InventoryItemSchema.index({ 'locations.node': 1 });
 
 // Ensure total quantity matches the sum of locations
