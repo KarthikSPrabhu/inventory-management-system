@@ -180,6 +180,10 @@ app.use('/api/reports', reportRoutes);
 const auditRoutes = require('./routes/auditRoutes');
 app.use('/api/audit-logs', auditRoutes);
 
+// Register Backup & Restore REST routes
+const backupRoutes = require('./routes/backupRoutes');
+app.use('/api/backups', backupRoutes);
+
 // Simple backend health-check endpoint
 app.get('/api/health', (req, res) => {
   res.status(200).json({

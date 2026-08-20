@@ -18,6 +18,7 @@ import Profile from './pages/Profile';
 
 import Reports from './pages/Reports';
 import AuditLogs from './pages/AuditLogs';
+import BackupRestore from './pages/BackupRestore';
 
 function App() {
   return (
@@ -107,6 +108,14 @@ function App() {
               element={
                 <ProtectedRoute requiredRole="admin">
                   <AuditLogs />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/backup"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <BackupRestore />
                 </ProtectedRoute>
               }
             />

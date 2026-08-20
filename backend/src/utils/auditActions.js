@@ -1,7 +1,7 @@
 /**
  * Centralized Audit Action Constants
  */
-module.exports = Object.freeze({
+const AUDIT_ACTIONS = {
   // Inventory Item Actions
   CREATE: 'CREATE',
   UPDATE: 'UPDATE',
@@ -42,5 +42,17 @@ module.exports = Object.freeze({
 
   // Data Import & Export Actions
   IMPORT: 'IMPORT',
-  EXPORT: 'EXPORT'
-});
+  EXPORT: 'EXPORT',
+
+  // Backup & Restore Actions
+  BACKUP_CREATE: 'BACKUP_CREATE',
+  BACKUP_DOWNLOAD: 'BACKUP_DOWNLOAD',
+  BACKUP_RESTORE_START: 'BACKUP_RESTORE_START',
+  BACKUP_RESTORE_SUCCESS: 'BACKUP_RESTORE_SUCCESS',
+  BACKUP_RESTORE_FAILED: 'BACKUP_RESTORE_FAILED',
+  BACKUP_SAFETY_CREATED: 'BACKUP_SAFETY_CREATED'
+};
+
+AUDIT_ACTIONS.AUDIT_ACTIONS = AUDIT_ACTIONS;
+
+module.exports = Object.freeze(AUDIT_ACTIONS);
