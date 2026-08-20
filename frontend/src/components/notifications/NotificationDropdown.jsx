@@ -69,8 +69,19 @@ const NotificationDropdown = ({ onClose, onUpdateCount }) => {
     }
   };
 
+  // Handle Escape key listener
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   return (
-    <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-slate-200 shadow-xl rounded-2xl z-50 overflow-hidden flex flex-col max-h-[80vh]">
+    <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-96 bg-white border border-slate-200 shadow-xl rounded-2xl z-50 overflow-hidden flex flex-col max-h-[80vh]">
       <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
         <h3 className="font-black text-slate-800 tracking-tight text-sm">Notifications</h3>
         <button 
@@ -106,8 +117,8 @@ const NotificationDropdown = ({ onClose, onUpdateCount }) => {
                 <div className="flex items-start gap-3">
                   <span className="text-sm shrink-0">{getPriorityIcon(notif.priority, notif.isRead)}</span>
                   <div className="flex-1">
-                    <p className="text-xs font-black text-slate-800">{notif.title}</p>
-                    <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">{notif.message}</p>
+                    <p className="text-xs font-black text-slate-800 break-words">{notif.title}</p>
+                    <p className="text-[11px] text-slate-600 mt-0.5 leading-snug break-words">{notif.message}</p>
                     
                     <div className="flex justify-between items-end mt-2">
                       <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">

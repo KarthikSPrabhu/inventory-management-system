@@ -33,6 +33,19 @@ function AddStockModal({ item, isOpen, onClose, onSuccess }) {
     }
   }, [isOpen, item]);
 
+  // Escape key listener to close modal safely
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isOpen && !submitting && onClose) {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, submitting, onClose]);
+
   if (!isOpen || !item) return null;
 
   const currentStock = item.quantity || 0;
@@ -88,7 +101,7 @@ function AddStockModal({ item, isOpen, onClose, onSuccess }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 select-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 select-none" role="dialog" aria-modal="true" aria-labelledby="add-stock-modal-title">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-white backdrop-blur-sm transition-opacity"
@@ -106,7 +119,7 @@ function AddStockModal({ item, isOpen, onClose, onSuccess }) {
               </svg>
             </div>
             <div>
-              <h3 className="text-sm font-black text-slate-900 tracking-tight uppercase">ADD INVENTORY STOCK</h3>
+              <h3 id="add-stock-modal-title" className="text-sm font-black text-slate-900 tracking-tight uppercase">ADD INVENTORY STOCK</h3>
               <p className="text-[11px] text-slate-500 font-semibold truncate max-w-[220px]">{item.name}</p>
             </div>
           </div>
@@ -114,6 +127,7 @@ function AddStockModal({ item, isOpen, onClose, onSuccess }) {
           <button
             onClick={onClose}
             disabled={submitting}
+            aria-label="Close modal"
             className="p-1 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

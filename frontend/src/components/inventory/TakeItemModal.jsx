@@ -39,6 +39,19 @@ function TakeItemModal({ item, isOpen, onClose, onSuccess }) {
     }
   }, [isOpen, item]);
 
+  // Escape key listener to close modal safely
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isOpen && !submitting && onClose) {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, submitting, onClose]);
+
   const fetchSuggestions = async (itemId) => {
     setLoadingSuggestions(true);
     try {

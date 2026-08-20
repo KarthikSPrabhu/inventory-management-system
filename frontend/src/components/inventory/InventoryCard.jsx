@@ -159,6 +159,7 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
               <button
                 onClick={handleCopy}
                 title="Copy location code"
+                aria-label={`Copy location code ${displayCode}`}
                 className={`p-1.5 rounded-md border transition-colors flex items-center justify-center ${
                   copied 
                     ? 'bg-emerald-50 text-emerald-600 border-emerald-200' 
@@ -199,6 +200,7 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
               }}
               disabled={quantity === 0}
               title="Take item for a project"
+              aria-label={`Take ${name} for a project`}
               className={`h-9 font-extrabold text-[11px] px-1.5 rounded-xl transition-all flex items-center justify-center gap-1 min-w-0 ${
                 quantity > 0
                   ? 'bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 cursor-pointer shadow-sm hover:shadow-md'
@@ -222,6 +224,7 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
                 onAddStock(item);
               }}
               title="Add stock to inventory"
+              aria-label={`Add stock to ${name}`}
               className="h-9 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 font-extrabold text-[11px] px-1.5 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer shadow-sm hover:shadow-md min-w-0"
             >
               <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -238,6 +241,7 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
               to={`/inventory/${_id}`}
               onClick={(e) => e.stopPropagation()}
               title="View item details"
+              aria-label={`View details for ${name}`}
               className="h-9 flex-1 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-900 font-bold text-[11px] px-1.5 rounded-xl transition-all flex items-center justify-center gap-1 text-center min-w-0 shadow-sm hover:shadow-md"
             >
               <span className="truncate">Details</span>
@@ -246,8 +250,9 @@ function InventoryCard({ item, searchQuery, onLocate, isLocated, onTakeItem, onA
             {onMoveItem && (
               <button
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); onMoveItem(item); }}
-                className="h-9 flex-1 min-w-[36px] bg-slate-50 hover:bg-amber-50 text-slate-600 hover:text-amber-700 border border-slate-200 hover:border-amber-300 font-bold text-[11px] rounded-xl transition-all flex items-center justify-center"
+                className="h-9 flex-1 min-w-[36px] bg-slate-50 hover:bg-amber-50 text-slate-600 hover:text-amber-700 border border-slate-200 hover:border-amber-300 font-bold text-[11px] rounded-xl transition-all flex items-center justify-center cursor-pointer"
                 title="Move item stock"
+                aria-label={`Move stock location for ${name}`}
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />

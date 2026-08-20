@@ -23,6 +23,19 @@ function AddBuyListModal({ isOpen, onClose, onSuccess }) {
     }
   }, [isOpen]);
 
+  // Escape key listener to close modal safely
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isOpen && !submitting && onClose) {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, submitting, onClose]);
+
   if (!isOpen) return null;
 
   const numQty = Number(quantityNeeded);
