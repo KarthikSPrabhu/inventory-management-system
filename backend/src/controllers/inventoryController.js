@@ -3,6 +3,8 @@ const InventoryUsage = require('../models/InventoryUsage');
 const InventoryStockIn = require('../models/InventoryStockIn');
 const { deepPopulateLocation, generateLocationDisplayId } = require('../utils/locationUtils');
 const notificationService = require('../services/notificationService');
+const auditService = require('../services/auditService');
+const { AUDIT_ACTIONS } = require('../utils/auditActions');
 const mongoose = require('mongoose');
 
 // Helper to validate ObjectId
@@ -115,6 +117,18 @@ exports.createInventoryItem = async (req, res) => {
     
     await item.save();
     
+    // Log Audit Event
+    await auditService.log({
+      req,
+      action: AUDIT_ACTIONS.CREATE,
+      resourceType: 'InventoryItem',
+      resourceId: item._id,
+      resourceName: item.name,
+      description: `Created new inventory item "${item.name}" with initial quantity ${item.quantity || 0}`,
+      newState: item.toObject ? item.toObject() : item,
+      metadata: { category: item.category, minimumStock: item.minimumStock, quantity: item.quantity }
+    });
+
     res.status(201).json({
       success: true,
       data: item
@@ -614,11 +628,25 @@ exports.updateInventoryItem = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Minimum stock cannot be greater than maximum stock' });
     }
     
+    const prevSnapshot = item.toObject ? item.toObject() : { ...item };
     await item.save();
     
     // Trigger Notifications in background
     notificationService.checkItemThresholds(item, req.user);
     
+    // Log Audit Event
+    await auditService.log({
+      req,
+      action: AUDIT_ACTIONS.UPDATE,
+      resourceType: 'InventoryItem',
+      resourceId: item._id,
+      resourceName: item.name,
+      description: `Updated inventory item details for "${item.name}"`,
+      previousState: prevSnapshot,
+      newState: item.toObject ? item.toObject() : item,
+      metadata: { category: item.category, quantity: item.quantity, minimumStock: item.minimumStock }
+    });
+
     res.status(200).json({
       success: true,
       data: item
@@ -671,6 +699,17 @@ exports.deleteInventoryItem = async (req, res) => {
       item.isArchived = true;
       await item.save();
       
+      await auditService.log({
+        req,
+        action: AUDIT_ACTIONS.ARCHIVE,
+        resourceType: 'InventoryItem',
+        resourceId: item._id,
+        resourceName: item.name,
+        description: `Archived inventory item "${item.name}" to preserve historical integrity`,
+        previousState: item.toObject ? item.toObject() : item,
+        metadata: { isArchived: true }
+      });
+
       return res.status(200).json({
         success: true,
         message: 'Item has historical activity and was successfully archived.',
@@ -680,6 +719,16 @@ exports.deleteInventoryItem = async (req, res) => {
     
     await item.deleteOne();
     
+    await auditService.log({
+      req,
+      action: AUDIT_ACTIONS.DELETE,
+      resourceType: 'InventoryItem',
+      resourceId: item._id,
+      resourceName: item.name,
+      description: `Deleted inventory item "${item.name}"`,
+      previousState: item.toObject ? item.toObject() : item
+    });
+
     res.status(200).json({
       success: true,
       data: { id }
@@ -782,6 +831,42 @@ exports.moveItem = async (req, res) => {
       await adjustment.save(session ? { session } : undefined);
 
       if (session) await session.commitTransaction();
+
+      // Resolve hierarchical display IDs for source and destination locations
+      const getPathCodesHelper = (node) => {
+        const path = [];
+        let curr = node;
+        while (curr) {
+          path.unshift(curr.code);
+          curr = curr.parentId;
+        }
+        return path;
+      };
+
+      const [fromNodeDoc, toNodeDoc] = await Promise.all([
+        StorageNode.findById(fromLocationId).populate({ path: 'parentId', populate: { path: 'parentId', populate: { path: 'parentId' } } }),
+        StorageNode.findById(toLocationId).populate({ path: 'parentId', populate: { path: 'parentId', populate: { path: 'parentId' } } })
+      ]);
+
+      const fromDisplay = fromNodeDoc ? generateLocationDisplayId(getPathCodesHelper(fromNodeDoc)) : fromLocationId;
+      const toDisplay = toNodeDoc ? generateLocationDisplayId(getPathCodesHelper(toNodeDoc)) : toLocationId;
+
+      await auditService.log({
+        req,
+        action: AUDIT_ACTIONS.STOCK_MOVE,
+        resourceType: 'InventoryItem',
+        resourceId: item._id,
+        resourceName: item.name,
+        description: `Moved ${qty} units of "${item.name}" from ${fromDisplay} to ${toDisplay}`,
+        metadata: {
+          quantity: qty,
+          fromLocationId,
+          toLocationId,
+          fromLocationDisplay: fromDisplay,
+          toLocationDisplay: toDisplay,
+          totalQuantity: item.quantity
+        }
+      });
 
       return res.status(200).json({
         success: true,

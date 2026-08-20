@@ -34,6 +34,7 @@ function Layout({ children }) {
   const isAnalyticsActive = location.pathname.startsWith('/analytics');
   const isBuyListActive = location.pathname.startsWith('/buy-list');
   const isReportsActive = location.pathname.startsWith('/reports');
+  const isAuditLogsActive = location.pathname.startsWith('/audit-logs');
   const isUsersActive = location.pathname.startsWith('/users');
   const isProfileActive = location.pathname.startsWith('/profile');
 
@@ -167,6 +168,22 @@ function Layout({ children }) {
               </svg>
               <span>Reports</span>
             </Link>
+
+            {user?.role === 'admin' && (
+              <Link
+                to="/audit-logs"
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all ${
+                  isAuditLogsActive
+                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-[0_2px_10px_rgba(99,102,241,0.1)]'
+                    : 'text-slate-500 hover:text-slate-900 hover:bg-white border border-transparent hover:shadow-sm'
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                <span>Audit Logs</span>
+              </Link>
+            )}
 
             {user?.role === 'admin' && (
               <Link
@@ -347,6 +364,23 @@ function Layout({ children }) {
               </svg>
               <span>Reports</span>
             </Link>
+
+            {user?.role === 'admin' && (
+              <Link
+                to="/audit-logs"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-extrabold transition-all ${
+                  isAuditLogsActive
+                    ? 'bg-indigo-600/20 text-indigo-600 border border-indigo-300'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                <span>Audit Logs</span>
+              </Link>
+            )}
 
             {user?.role === 'admin' && (
               <Link

@@ -17,6 +17,7 @@ import Users from './pages/Users';
 import Profile from './pages/Profile';
 
 import Reports from './pages/Reports';
+import AuditLogs from './pages/AuditLogs';
 
 function App() {
   return (
@@ -98,6 +99,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Reports />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/audit-logs"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <AuditLogs />
                 </ProtectedRoute>
               }
             />

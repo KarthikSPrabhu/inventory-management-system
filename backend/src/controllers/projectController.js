@@ -46,6 +46,19 @@ exports.createProject = async (req, res) => {
 
     await project.save();
 
+    const auditService = require('../services/auditService');
+    const { AUDIT_ACTIONS } = require('../utils/auditActions');
+
+    await auditService.log({
+      req,
+      action: AUDIT_ACTIONS.PROJECT_CREATE,
+      resourceType: 'Project',
+      resourceId: project._id,
+      resourceName: project.name,
+      description: `Created new project "${project.name}" (${project.status})`,
+      newState: project.toObject ? project.toObject() : project
+    });
+
     res.status(201).json({
       success: true,
       message: `Project "${project.name}" created successfully.`,
@@ -258,7 +271,22 @@ exports.updateProject = async (req, res) => {
       project.status = status;
     }
 
+    const prevSnapshot = project.toObject ? project.toObject() : { ...project };
     await project.save();
+
+    const auditService = require('../services/auditService');
+    const { AUDIT_ACTIONS } = require('../utils/auditActions');
+
+    await auditService.log({
+      req,
+      action: AUDIT_ACTIONS.PROJECT_UPDATE,
+      resourceType: 'Project',
+      resourceId: project._id,
+      resourceName: project.name,
+      description: `Updated project "${project.name}"`,
+      previousState: prevSnapshot,
+      newState: project.toObject ? project.toObject() : project
+    });
 
     res.status(200).json({
       success: true,
@@ -384,6 +412,19 @@ exports.deleteProject = async (req, res) => {
 
     // Delete project
     await project.deleteOne();
+
+    const auditService = require('../services/auditService');
+    const { AUDIT_ACTIONS } = require('../utils/auditActions');
+
+    await auditService.log({
+      req,
+      action: AUDIT_ACTIONS.PROJECT_DELETE,
+      resourceType: 'Project',
+      resourceId: id,
+      resourceName: project.name,
+      description: `Deleted project "${project.name}"`,
+      previousState: project.toObject ? project.toObject() : project
+    });
 
     res.status(200).json({
       success: true,

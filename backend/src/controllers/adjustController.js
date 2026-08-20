@@ -2,6 +2,8 @@ const InventoryAdjustment = require('../models/InventoryAdjustment');
 const InventoryItem = require('../models/InventoryItem');
 const { deepPopulateLocation } = require('../utils/locationUtils');
 const notificationService = require('../services/notificationService');
+const auditService = require('../services/auditService');
+const { AUDIT_ACTIONS } = require('../utils/auditActions');
 const mongoose = require('mongoose');
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
@@ -96,9 +98,31 @@ exports.adjustStock = async (req, res) => {
 
       if (session) await session.commitTransaction();
 
+
+
       // Trigger notifications
       notificationService.checkItemThresholds(item, req.user);
       notificationService.generateAdjustmentAlert(diff, rawReason, item, req.user);
+
+      // Log Audit Event
+      await auditService.log({
+        req,
+        action: AUDIT_ACTIONS.STOCK_ADJUST,
+        resourceType: 'InventoryItem',
+        resourceId: item._id,
+        resourceName: item.name,
+        description: `Adjusted stock for "${item.name}" from ${prevQty} to ${qty} (Diff: ${diff > 0 ? '+' : ''}${diff}). Reason: ${rawReason}`,
+        previousState: { quantity: prevQty },
+        newState: { quantity: qty },
+        metadata: {
+          previousQuantity: prevQty,
+          newQuantity: qty,
+          difference: diff,
+          reason: rawReason,
+          notes: noteText,
+          locationId
+        }
+      });
 
       return res.status(201).json({
         success: true,

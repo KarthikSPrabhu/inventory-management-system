@@ -315,6 +315,45 @@ const Dashboard = ({ items, tree, isAdmin, onAction }) => {
         </div>
 
       </div>
+
+      {/* 6. ADMIN SYSTEM AUDIT QUICK VIEW (Admins Only) */}
+      {isAdmin && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-md text-white space-y-4">
+          <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+            <div>
+              <h4 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                🛡️ Recent System Activity
+              </h4>
+              <p className="text-[11px] text-slate-400">Live security & operational audit stream</p>
+            </div>
+            <Link to="/audit-logs" className="text-xs font-bold text-indigo-400 bg-indigo-950/80 border border-indigo-800/80 px-3 py-1.5 rounded-xl hover:bg-indigo-900 transition-colors">
+              VIEW FULL AUDIT LOG ➔
+            </Link>
+          </div>
+
+          <div className="space-y-2">
+            {recentActivity && recentActivity.length > 0 ? (
+              recentActivity.slice(0, 5).map((act, i) => (
+                <div key={i} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/60 border border-slate-700/50 text-xs">
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono text-[10px] font-extrabold text-indigo-400 bg-indigo-950 px-2 py-0.5 rounded-md border border-indigo-900">
+                      {act.type === 'stock_in' ? 'STOCK_IN' : act.type === 'usage' ? 'STOCK_OUT' : 'ACTIVITY'}
+                    </span>
+                    <div>
+                      <span className="font-bold text-slate-200">{act.item?.name || 'System Event'}</span>
+                      <span className="text-[10px] text-slate-400 block">{act.notes || act.reason || 'Activity recorded'}</span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-mono text-slate-400">{new Date(act.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+              ))
+            ) : (
+              <p className="text-xs text-slate-400 text-center py-2">No recent system events recorded.</p>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

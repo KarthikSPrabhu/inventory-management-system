@@ -65,6 +65,20 @@ exports.createStorageNode = async (req, res) => {
 
     await node.save();
     
+    const auditService = require('../services/auditService');
+    const { AUDIT_ACTIONS } = require('../utils/auditActions');
+
+    await auditService.log({
+      req,
+      action: AUDIT_ACTIONS.LOCATION_CREATE,
+      resourceType: 'StorageNode',
+      resourceId: node._id,
+      resourceName: `${node.type} ${node.code}`,
+      description: `Created new storage location ${node.type} "${node.name}" (${node.code})`,
+      newState: node.toObject ? node.toObject() : node,
+      metadata: { section: node.section, code: node.code, type: node.type, parentId: node.parentId }
+    });
+
     res.status(201).json({
       success: true,
       message: `${type} '${name}' created successfully.`,

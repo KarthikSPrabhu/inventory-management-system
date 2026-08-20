@@ -135,9 +135,30 @@ exports.createStockIn = async (req, res) => {
 
       if (session) await session.commitTransaction();
 
+      const auditService = require('../services/auditService');
+      const { AUDIT_ACTIONS } = require('../utils/auditActions');
+
       // Trigger Notifications in background
       notificationService.checkItemThresholds(item, req.user);
       notificationService.generateMovementAlert('IN', qty, item, req.user, null, null);
+
+      // Log Audit Event
+      await auditService.log({
+        req,
+        action: AUDIT_ACTIONS.STOCK_IN,
+        resourceType: 'InventoryItem',
+        resourceId: item._id,
+        resourceName: item.name,
+        description: `Added ${qty} stock units to "${item.name}". Reason: ${finalReason}`,
+        previousState: { quantity: item.quantity - qty },
+        newState: { quantity: item.quantity },
+        metadata: {
+          quantityAdded: qty,
+          reason: finalReason,
+          notes: noteText,
+          locationId
+        }
+      });
 
       return res.status(201).json({
         success: true,

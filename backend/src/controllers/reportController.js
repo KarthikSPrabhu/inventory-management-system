@@ -649,6 +649,18 @@ exports.exportReport = async (req, res) => {
     const { type = 'inventory', category, status, section, storageUnit } = req.query;
     const nowStr = new Date().toISOString().slice(0, 10);
 
+    const auditService = require('../services/auditService');
+    const { AUDIT_ACTIONS } = require('../utils/auditActions');
+
+    await auditService.log({
+      req,
+      action: AUDIT_ACTIONS.EXPORT,
+      resourceType: 'Report',
+      resourceName: `${type.toUpperCase()} Report`,
+      description: `Exported ${type} report to CSV format`,
+      metadata: { reportType: type, category, status, section, storageUnit }
+    });
+
     if (type === 'inventory') {
       const items = await InventoryItem.find({ isArchived: { $ne: true } }).populate(deepPopulateLocation).sort({ name: 1 });
       
@@ -984,6 +996,23 @@ exports.confirmImportCsv = async (req, res) => {
       }
 
       if (session) await session.commitTransaction();
+
+      const auditService = require('../services/auditService');
+      const { AUDIT_ACTIONS } = require('../utils/auditActions');
+
+      await auditService.log({
+        req,
+        action: AUDIT_ACTIONS.IMPORT,
+        resourceType: 'System',
+        resourceName: 'CSV Inventory Import',
+        description: `Imported CSV inventory records: ${createdCount} created, ${updatedCount} updated, ${skippedCount} skipped`,
+        metadata: {
+          createdCount,
+          updatedCount,
+          skippedCount,
+          totalProcessed: rows.length
+        }
+      });
 
       res.status(200).json({
         success: true,

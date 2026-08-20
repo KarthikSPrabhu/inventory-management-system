@@ -112,12 +112,31 @@ exports.createUsage = async (req, res) => {
 
       if (session) await session.commitTransaction();
 
+      const auditService = require('../services/auditService');
+      const { AUDIT_ACTIONS } = require('../utils/auditActions');
+
       // Trigger Notifications in background
       notificationService.checkItemThresholds(item, req.user);
       notificationService.generateMovementAlert('OUT', qty, item, req.user, project, null);
 
-      // Check Project Shortage if needed (Project has items, we just used some)
-      // For phase 23, project shortage is if required > available. We can add a function `checkProjectShortages` if project had required amounts, but currently Project Model doesn't explicitly have required quantities per item, only total required. If it does, we check it.
+      // Log Audit Event
+      await auditService.log({
+        req,
+        action: AUDIT_ACTIONS.STOCK_OUT,
+        resourceType: 'InventoryItem',
+        resourceId: item._id,
+        resourceName: item.name,
+        description: `Took ${qty} units of "${item.name}" for project "${project.name}"`,
+        previousState: { quantity: item.quantity + qty },
+        newState: { quantity: item.quantity },
+        metadata: {
+          quantityTaken: qty,
+          projectId: project._id,
+          projectName: project.name,
+          locationId,
+          notes: noteText
+        }
+      });
 
       return res.status(201).json({
         success: true,

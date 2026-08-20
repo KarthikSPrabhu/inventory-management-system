@@ -49,6 +49,19 @@ exports.createUser = async (req, res) => {
       role: role || 'member'
     });
 
+    const auditService = require('../services/auditService');
+    const { AUDIT_ACTIONS } = require('../utils/auditActions');
+
+    await auditService.log({
+      req,
+      action: AUDIT_ACTIONS.USER_CREATE,
+      resourceType: 'User',
+      resourceId: user._id,
+      resourceName: user.name,
+      description: `Created new user account for "${user.name}" (${user.email}) as ${user.role}`,
+      newState: { id: user._id, name: user.name, email: user.email, role: user.role, isActive: user.isActive }
+    });
+
     res.status(201).json({
       success: true,
       message: 'User created successfully',
@@ -95,11 +108,32 @@ exports.updateUser = async (req, res) => {
       }
     }
 
+    const prevSnapshot = { name: user.name, role: user.role, isActive: user.isActive };
+    
     user.name = name || user.name;
     if (role) user.role = role;
     if (typeof isActive !== 'undefined') user.isActive = isActive;
 
     await user.save();
+
+    const auditService = require('../services/auditService');
+    const { AUDIT_ACTIONS } = require('../utils/auditActions');
+
+    let actionType = AUDIT_ACTIONS.USER_UPDATE;
+    if (prevSnapshot.role !== user.role) actionType = AUDIT_ACTIONS.ROLE_CHANGE;
+    else if (prevSnapshot.isActive && !user.isActive) actionType = AUDIT_ACTIONS.USER_DISABLE;
+    else if (!prevSnapshot.isActive && user.isActive) actionType = AUDIT_ACTIONS.USER_ENABLE;
+
+    await auditService.log({
+      req,
+      action: actionType,
+      resourceType: 'User',
+      resourceId: user._id,
+      resourceName: user.name,
+      description: `Updated user "${user.name}" (Role: ${user.role}, Status: ${user.isActive ? 'Active' : 'Disabled'})`,
+      previousState: prevSnapshot,
+      newState: { name: user.name, role: user.role, isActive: user.isActive }
+    });
 
     res.status(200).json({
       success: true,

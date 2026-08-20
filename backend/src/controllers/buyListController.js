@@ -101,6 +101,19 @@ exports.createBuyListItem = async (req, res) => {
 
     await item.save();
 
+    const auditService = require('../services/auditService');
+    const { AUDIT_ACTIONS } = require('../utils/auditActions');
+
+    await auditService.log({
+      req,
+      action: AUDIT_ACTIONS.BUY_LIST_ADD,
+      resourceType: 'BuyListItem',
+      resourceId: item._id,
+      resourceName: item.name,
+      description: `Added "${item.name}" (Qty: ${item.quantityNeeded}) to Buy List`,
+      newState: item.toObject ? item.toObject() : item
+    });
+
     res.status(201).json({
       success: true,
       message: `"${item.name}" added to Buy List.`,
@@ -190,7 +203,22 @@ exports.updateBuyListItem = async (req, res) => {
       item.note = noteText;
     }
 
+    const prevSnapshot = item.toObject ? item.toObject() : { ...item };
     await item.save();
+
+    const auditService = require('../services/auditService');
+    const { AUDIT_ACTIONS } = require('../utils/auditActions');
+
+    await auditService.log({
+      req,
+      action: AUDIT_ACTIONS.BUY_LIST_UPDATE,
+      resourceType: 'BuyListItem',
+      resourceId: item._id,
+      resourceName: item.name,
+      description: `Updated Buy List item "${item.name}" (${item.status})`,
+      previousState: prevSnapshot,
+      newState: item.toObject ? item.toObject() : item
+    });
 
     res.status(200).json({
       success: true,
@@ -229,6 +257,19 @@ exports.deleteBuyListItem = async (req, res) => {
     }
 
     await item.deleteOne();
+
+    const auditService = require('../services/auditService');
+    const { AUDIT_ACTIONS } = require('../utils/auditActions');
+
+    await auditService.log({
+      req,
+      action: AUDIT_ACTIONS.BUY_LIST_DELETE,
+      resourceType: 'BuyListItem',
+      resourceId: id,
+      resourceName: item.name,
+      description: `Removed "${item.name}" from Buy List`,
+      previousState: item.toObject ? item.toObject() : item
+    });
 
     res.status(200).json({
       success: true,

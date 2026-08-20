@@ -64,6 +64,19 @@ exports.login = async (req, res) => {
     // Generate token
     const token = generateToken(user);
 
+    const auditService = require('../services/auditService');
+    const { AUDIT_ACTIONS } = require('../utils/auditActions');
+
+    await auditService.log({
+      req,
+      user,
+      action: AUDIT_ACTIONS.LOGIN,
+      resourceType: 'User',
+      resourceId: user._id,
+      resourceName: user.name,
+      description: `User "${user.name}" (${user.email}) logged in successfully`
+    });
+
     res.status(200).json({
       success: true,
       message: 'Login successful',
@@ -142,6 +155,19 @@ exports.changePassword = async (req, res) => {
 
     user.passwordHash = await User.hashPassword(newPassword);
     await user.save();
+
+    const auditService = require('../services/auditService');
+    const { AUDIT_ACTIONS } = require('../utils/auditActions');
+
+    await auditService.log({
+      req,
+      user,
+      action: AUDIT_ACTIONS.PASSWORD_CHANGE,
+      resourceType: 'User',
+      resourceId: user._id,
+      resourceName: user.name,
+      description: `User "${user.name}" changed their password`
+    });
 
     res.status(200).json({
       success: true,

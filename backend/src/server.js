@@ -176,6 +176,10 @@ app.use('/api/buy-list', buyListRoutes);
 const reportRoutes = require('./routes/reportRoutes');
 app.use('/api/reports', reportRoutes);
 
+// Register Audit Log REST routes
+const auditRoutes = require('./routes/auditRoutes');
+app.use('/api/audit-logs', auditRoutes);
+
 // Simple backend health-check endpoint
 app.get('/api/health', (req, res) => {
   res.status(200).json({
